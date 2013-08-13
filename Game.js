@@ -6,6 +6,7 @@ function Tower(game,x,y){
 	this.angle = 0;
 	this.target = null;
 	this.id = Tower.prototype.idGen++;
+	this.cooldown = 4;
 }
 
 Tower.prototype.update = function(dt){
@@ -23,26 +24,49 @@ Tower.prototype.update = function(dt){
 	if(nearest != null)
 		this.target = nearest;
 
-	if(this.target != null){
+	if(this.cooldown <= 0 && this.target != null){
 		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
 		var spd = 100;
-		var b = new Bullet(this.game, this.x, this.y, spd * Math.cos(this.angle), spd * Math.sin(this.angle), this.angle);
-		this.game.bullets.push(b);
+		var mat = [Math.cos(this.angle), Math.sin(this.angle), -Math.sin(this.angle), Math.cos(this.angle)];
+		function matvp(m,v){
+			return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]];
+		}
+		function mattvp(m,v){
+			return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]];
+		}
+		for(var i = -1; i <= 1; i += 2){
+			var ofs = mattvp(mat, [0, i * 5]);
+			var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle);
+			this.game.bullets.push(b);
+		}
+		this.cooldown = 4;
 	}
+
+	if(0 < this.cooldown)
+		this.cooldown--;
 
 	return true;
 }
 
 Tower.prototype.draw = function(ctx){
 	var v = this;
+
+	ctx.translate(v.x, v.y);
+	ctx.rotate(v.angle);
+	ctx.fillStyle = "#fff";
+	ctx.fillRect(0, -5, 20, 10);
+	ctx.strokeStyle = "#0ff";
+	ctx.strokeRect(0, -5, 20, 10);
+	ctx.setTransform(1,0,0,1,0,0);
+
+	ctx.strokeStyle = "#00f";
+	ctx.fillStyle = "#fff";
 	ctx.beginPath();
 	ctx.arc(v.x, v.y, 10, 0, Math.PI*2, false);
 	ctx.stroke();
+	ctx.fill();
+	ctx.fillStyle = "#f00";
 	ctx.fillText(v.id, v.x, v.y);
-	ctx.translate(v.x, v.y);
-	ctx.rotate(v.angle);
-	ctx.strokeRect(0, -5, 20, 5);
-	ctx.setTransform(1,0,0,1,0,0);
 }
 
 Tower.prototype.idGen = 0;
@@ -101,12 +125,18 @@ function Enemy(game,x,y){
 	this.game = game;
 	this.x = x;
 	this.y = y;
+	this.vx = 0;
+	this.vy = 0;
 	this.health = 10;
 }
 
 Enemy.prototype.update = function(dt){
-	this.x += (game.width / 2 - this.x) * 0.01;
-	this.y += (game.height / 2 - this.y) * 0.01;
+	this.vx += (game.width / 2 - this.x) * 0.005 + (this.game.rng.next() - 0.5) * 15;
+	this.vy += (game.height / 2 - this.y) * 0.005 + (this.game.rng.next() - 0.5) * 15;
+	this.vx *= 0.8;
+	this.vy *= 0.8;
+	this.x += this.vx * dt;
+	this.y += this.vy * dt;
 	this.onUpdate(dt);
 	return true;
 }
@@ -220,14 +250,13 @@ Game.prototype.update = function(dt){
 }
 
 Game.prototype.draw = function(ctx){
+	ctx.fillStyle = "#000";
 	ctx.clearRect(0,0,this.width,this.height);
 
 	ctx.font = "bold 16px Helvetica";
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
 
-	ctx.strokeStyle = "#000";
-	ctx.fillStyle = "#000";
 	ctx.setTransform(1,0,0,1,0,0);
 	for(var i = 0; i < this.towers.length; i++){
 		var v = game.towers[i];

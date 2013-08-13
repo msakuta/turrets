@@ -4,7 +4,7 @@
 	<title>Tower Defense Game Test</title>
 	<meta charset="UTF-8" />
 </head>
-<body>
+<body style="background-color: #000; color: #fff">
 	<div id="header">
 		<h1>Tower Defense Game Test</h1>
 	</div>
@@ -30,7 +30,7 @@ window.onload = function() {
 
 	var loop = function() {
 		draw();
-		var timer = setTimeout(loop,100);
+		var timer = setTimeout(loop,50);
 	};
 
 	loop();
