@@ -7,6 +7,8 @@ function Tower(game,x,y){
 	this.target = null;
 	this.id = Tower.prototype.idGen++;
 	this.cooldown = 4;
+	this.kills = 0;
+	this.damage = 0;
 }
 
 Tower.prototype.update = function(dt){
@@ -36,7 +38,7 @@ Tower.prototype.update = function(dt){
 		}
 		for(var i = -1; i <= 1; i += 2){
 			var ofs = mattvp(mat, [0, i * 5]);
-			var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle);
+			var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this);
 			this.game.bullets.push(b);
 		}
 		this.cooldown = 4;
@@ -48,7 +50,7 @@ Tower.prototype.update = function(dt){
 	return true;
 }
 
-Tower.prototype.draw = function(ctx){
+Tower.prototype.draw = function(ctx,mouseon){
 	var v = this;
 
 	ctx.translate(v.x, v.y);
@@ -60,13 +62,29 @@ Tower.prototype.draw = function(ctx){
 	ctx.setTransform(1,0,0,1,0,0);
 
 	ctx.strokeStyle = "#00f";
-	ctx.fillStyle = "#fff";
+	ctx.fillStyle = mouseon ? "#ff0" : "#fff";
 	ctx.beginPath();
 	ctx.arc(v.x, v.y, 10, 0, Math.PI*2, false);
 	ctx.stroke();
 	ctx.fill();
 	ctx.fillStyle = "#f00";
+	ctx.font = "bold 16px Helvetica";
 	ctx.fillText(v.id, v.x, v.y);
+
+	if(mouseon){
+		ctx.translate(v.x, v.y);
+		ctx.fillStyle = "#0f0";
+		ctx.fillRect(-10, -20, 20, 5);
+		ctx.fillStyle = "#111";
+		ctx.fillRect(-40, 15, 80, 20);
+		ctx.strokeStyle = "#fff";
+		ctx.strokeRect(-40, 15, 80, 20);
+		ctx.font = "10px Helvetica";
+		ctx.fillStyle = "#fff";
+		ctx.fillText("Kills: " + this.kills, 0, 20);
+		ctx.fillText("Damage: " + this.damage, 0, 30);
+		ctx.setTransform(1,0,0,1,0,0);
+	}
 }
 
 Tower.prototype.idGen = 0;
@@ -84,13 +102,14 @@ Tower.prototype.measureDistance = function(other){
 }
 
 
-function Bullet(game,x,y,vx,vy,angle){
+function Bullet(game,x,y,vx,vy,angle,owner){
 	this.game = game;
 	this.x = x;
 	this.y = y;
 	this.vx = vx;
 	this.vy = vy;
 	this.angle = angle;
+	this.owner = owner;
 }
 
 Bullet.prototype.update = function(dt){
@@ -100,7 +119,9 @@ Bullet.prototype.update = function(dt){
 	for(var i = 0; i < enemies.length; i++){
 		var e = enemies[i];
 		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < 10 * 10){
-			e.damage(1);
+			this.owner.damage++;
+			if(e.damage(1))
+				this.owner.kills++;
 			return 0;
 		}
 	}
@@ -146,7 +167,9 @@ Enemy.prototype.damage = function(dmg){
 	if(this.health <= 0){
 		var ind = this.game.enemies.indexOf(this);
 		this.game.enemies.splice(ind, 1);
+		return true;
 	}
+	return false;
 }
 
 Enemy.prototype.calcPos = function(){
@@ -190,11 +213,16 @@ function Game(width, height){
 //	document.write(width + " " + height + ";");
 	for(var i = 0; i < n; i++)
 		this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
+	this.pause = false;
+	this.mouseX = 0;
+	this.mouseY = 0;
 }
 
 Game.prototype.global_time = 0;
 
 Game.prototype.update = function(dt){
+	if(this.pause)
+		return;
 
 	for(var i = 0; i < this.towers.length;){
 		var v = this.towers[i];
@@ -260,7 +288,7 @@ Game.prototype.draw = function(ctx){
 	ctx.setTransform(1,0,0,1,0,0);
 	for(var i = 0; i < this.towers.length; i++){
 		var v = game.towers[i];
-		v.draw(ctx);
+		v.draw(ctx, v.x - 10 < this.mouseX && this.mouseX < v.x + 10 && v.y - 10 < this.mouseY && this.mouseY < v.y + 10);
 	}
 
 	for(var i = 0; i < this.bullets.length; i++){
@@ -273,4 +301,22 @@ Game.prototype.draw = function(ctx){
 	for(var i = 0; i < this.enemies.length; i++){
 		this.enemies[i].draw(ctx);
 	}
+
+	ctx.strokeStyle = "#fff";
+	ctx.beginPath();
+	ctx.moveTo(this.mouseX, 0);
+	ctx.lineTo(this.mouseX, this.height);
+	ctx.moveTo(0, this.mouseY);
+	ctx.lineTo(this.width, this.mouseY);
+	ctx.stroke();
+}
+
+Game.prototype.onClick = function(e){
+	this.pause = !this.pause;
+}
+
+Game.prototype.mouseMove = function(e){
+	var rect = e.target.getBoundingClientRect();
+	this.mouseX = e.clientX - rect.left;
+	this.mouseY = e.clientY - rect.top;
 }

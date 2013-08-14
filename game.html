@@ -9,7 +9,7 @@
 		<h1>Tower Defense Game Test</h1>
 	</div>
 	<canvas id="scratch" width="400px" height="400px" style="width: 400px; height: 400px;"></canvas>
-	<div id="timeText"/>
+	<div id="text"/>
 	<script type="text/javascript" src="xorshift.js"></script>
 	<script type="text/javascript" src="Game.js"></script>
 	<script type="text/javascript">
@@ -27,6 +27,12 @@ window.onload = function() {
 	width = parseInt(canvas.style.width);
 	height = parseInt(canvas.style.height);
 	game = new Game(width, height);
+	canvas.addEventListener('click', function(e){game.onClick(e);}, false);
+	canvas.onmousemove = function(e){
+		var text = document.getElementById("text");
+		text.innerText = "(" + e.clientX + "," + e.clientY + ")";
+		game.mouseMove(e);
+	};
 
 	var loop = function() {
 		draw();
