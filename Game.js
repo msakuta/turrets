@@ -256,11 +256,13 @@ function Game(width, height){
 
 	if(typeof(Storage) !== "undefined"){
 		var data = JSON.parse(localStorage.getItem("towers"));
-		for(var i = 0; i < data.length; i++){
-			var tow = data[0];
-			if(tow){
-				this.towers[i].kills = tow.kills;
-				this.towers[i].damage = tow.damage;
+		if(data != null){
+			for(var i = 0; i < data.length; i++){
+				var tow = data[0];
+				if(tow){
+					this.towers[i].kills = tow.kills;
+					this.towers[i].damage = tow.damage;
+				}
 			}
 		}
 	}
