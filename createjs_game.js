@@ -23,19 +23,17 @@ function init(){
 		text.y = -10;
 
 		var shape = new createjs.Container();
-		var inactiveShape = new createjs.Shape();
-		inactiveShape.graphics.beginFill("#ffffff").beginStroke("#0000ff")
-			.drawRect(0, -5, 20, 10).endStroke()
-			.beginStroke("#0000ff")
-			.drawCircle(0, 0, 10);
 		var activeShape = new createjs.Shape();
-		activeShape.graphics.beginFill("#ffff00").beginStroke("#0000ff")
-			.drawRect(0, -5, 20, 10).endStroke()
-			.beginStroke("#0000ff")
-			.drawCircle(0, 0, 10);
+		activeShape.graphics.beginStroke("#00ffff").drawCircle(0, 0, 12);
 		activeShape.visible = false;
-		shape.addChild(inactiveShape);
 		shape.addChild(activeShape);
+		var hitShape = new createjs.Shape();
+		hitShape.graphics.beginFill("#ffffff").drawCircle(10, 10, 10);
+		var bm = new createjs.Bitmap("assets/turret.png");
+		bm.x = -10;
+		bm.y = -10;
+		bm.hitArea = hitShape;
+		shape.addChild(bm);
 
 		var tip = new createjs.Container();
 		var tipshape = new createjs.Shape();
@@ -57,12 +55,10 @@ function init(){
 		towerContainer.addChild(graph);
 		graph.addEventListener("mouseover", function(event){
 			tip.visible = true;
-			inactiveShape.visible = false;
 			activeShape.visible = true;
 		});
 		graph.addEventListener("mouseout", function(event){
 			tip.visible = false;
-			inactiveShape.visible = true;
 			activeShape.visible = false;
 		});
 		graph.on("pressmove", function(evt){
@@ -76,7 +72,7 @@ function init(){
 			game.moving = false;
 		});
 		t.onUpdate = function(dt){
-			shape.rotation = this.angle * 360 / 2 / Math.PI;
+			shape.rotation = this.angle * 360 / 2 / Math.PI + 90;
 			graph.x = this.x;
 			graph.y = this.y;
 			if(tip.visible){
