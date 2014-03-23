@@ -9,7 +9,8 @@
 		<h1>Tower Defense Game Test</h1>
 	</div>
 	<canvas id="scratch" width="400px" height="400px" style="width: 400px; height: 400px;"></canvas>
-	<div id="text"/>
+	<div id="text"></div>
+	<div id="savetext"></div>
 	<script type="text/javascript" src="xorshift.js"></script>
 	<script type="text/javascript" src="Game.js"></script>
 	<script type="text/javascript">
@@ -46,8 +47,13 @@ function resetTrans(ctx){
 	ctx.setTransform(1,0,0,1,200,200);
 }
 
+function autoSaveHandler(saveData){
+	var text = document.getElementById("savetext");
+	text.innerText = saveData;
+}
+
 function draw() {
-	game.update(0.1);
+	game.update(0.1, autoSaveHandler);
 
 	var ctx = canvas.getContext('2d');
 

@@ -244,15 +244,27 @@ function Game(width, height){
 		if(damage != null)
 			this.towers[i].damage = parseInt(damage);*/
 		// Check for localStorage
-		if(typeof(Storage) !== "undefined"){
+/*		if(typeof(Storage) !== "undefined"){
 			var kills = localStorage.getItem("tower" + i + ".kills");
 			if(kills != null)
 				this.towers[i].kills = parseInt(kills);
 			var damage = localStorage.getItem("tower" + i + ".damage");
 			if(damage != null)
 				this.towers[i].damage = parseInt(damage);
+		}*/
+	}
+
+	if(typeof(Storage) !== "undefined"){
+		var data = JSON.parse(localStorage.getItem("towers"));
+		for(var i = 0; i < data.length; i++){
+			var tow = data[0];
+			if(tow){
+				this.towers[i].kills = tow.kills;
+				this.towers[i].damage = tow.damage;
+			}
 		}
 	}
+
 	this.pause = false;
 	this.mouseX = 0;
 	this.mouseY = 0;
@@ -261,7 +273,7 @@ function Game(width, height){
 
 Game.prototype.global_time = 0;
 
-Game.prototype.update = function(dt){
+Game.prototype.update = function(dt, autoSaveHandler){
 	if(this.pause)
 		return;
 
@@ -320,7 +332,6 @@ Game.prototype.update = function(dt){
 			document.cookie = "tower" + i + ".kills=" + v.kills;
 			document.cookie = "tower" + i + ".damage=" + v.damage;
 		}
-		this.cookie_time += 10.;
 
 		// Check for localStorage
 		if(typeof(Storage) !== "undefined"){
@@ -329,7 +340,17 @@ Game.prototype.update = function(dt){
 				localStorage.setItem("tower" + i + ".kills", v.kills);
 				localStorage.setItem("tower" + i + ".damage", v.damage);
 			}
+
+			var saveData = [];
+			for(var i = 0; i < this.towers.length; i++){
+				var v = this.towers[i];
+				saveData.push({kills: v.kills, damage: v.damage});
+			}
+			localStorage.setItem("towers", JSON.stringify(saveData));
+			autoSaveHandler(JSON.stringify(saveData));
 		}
+
+		this.cookie_time += 10.;
 	}
 
 //	invokes++;
