@@ -7,6 +7,7 @@ var game;
 
 var explosionSpriteTemplate;
 var hitSpriteTemplate;
+var pauseText;
 
 function init(){
 	canvas = document.getElementById("scratch");
@@ -137,21 +138,11 @@ function init(){
 	towerContainer = new createjs.Container();
 	stage.addChild(towerContainer);
 
-	var pauseText = new createjs.Text("PAUSED", "Bold 40px Arial", "#ff7f7f");
+	pauseText = new createjs.Text("PAUSED", "Bold 40px Arial", "#ff7f7f");
 	pauseText.visible = false;
 	pauseText.x = (width - pauseText.getBounds().width) / 2;
 	pauseText.y = (height - pauseText.getBounds().height) / 2;
 	stage.addChild(pauseText);
-
-	// Clicking toggles pause state
-	stage.addEventListener("stagemouseup", function(event){
-		if(game.moving)
-			return;
-		game.pause = !game.pause;
-		pauseText.visible = game.pause;
-		if(game.pause)
-			stage.setChildIndex(pauseText, stage.getNumChildren()-1);
-	});
 
 
 	// create spritesheet for explosion (Enemy death).
@@ -200,4 +191,19 @@ function save(){
 function load(state){
 	towerContainer.removeAllChildren();
 	game.deserialize(state);
+}
+
+function togglePause(){
+	if(game.moving)
+		return;
+	game.pause = !game.pause;
+	pauseText.visible = game.pause;
+	if(game.pause)
+		stage.setChildIndex(pauseText, stage.getNumChildren()-1);
+}
+
+document.onkeydown = function(event){
+	if(event.keyCode == 80){
+		togglePause();
+	}
 }
