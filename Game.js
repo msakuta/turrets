@@ -215,31 +215,6 @@ Enemy.prototype.onDelete = function(){
 
 
 
-function GetCookie( name )
-{
-    var result = null;
-
-    var cookieName = name + '=';
-    var allcookies = document.cookie;
-
-    var position = allcookies.indexOf( cookieName );
-    if( position != -1 )
-    {
-        var startIndex = position + cookieName.length;
-
-        var endIndex = allcookies.indexOf( ';', startIndex );
-        if( endIndex == -1 )
-        {
-            endIndex = allcookies.length;
-        }
-
-        result = decodeURIComponent(
-            allcookies.substring( startIndex, endIndex ) );
-    }
-
-    return result;
-}
-
 function Game(width, height){
 	this.width = width;
 	this.height = height;
@@ -251,7 +226,7 @@ function Game(width, height){
 	this.moving = false; ///< Moving something (temporary pause)
 	this.mouseX = 0;
 	this.mouseY = 0;
-	this.cookie_time = 0;
+	this.autosave_time = 0;
 }
 
 Game.prototype.global_time = 0;
@@ -350,12 +325,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 			i++;
 	}
 
-	if(this.cookie_time + 10. < Game.prototype.global_time){
-		for(var i = 0; i < this.towers.length; i++){
-			var v = this.towers[i];
-			document.cookie = "tower" + i + ".kills=" + v.kills;
-			document.cookie = "tower" + i + ".damage=" + v.damage;
-		}
+	if(this.autosave_time + 10. < Game.prototype.global_time){
 
 		// Check for localStorage
 		if(typeof(Storage) !== "undefined"){
@@ -364,7 +334,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 			autoSaveHandler(serialData);
 		}
 
-		this.cookie_time += 10.;
+		this.autosave_time += 10.;
 	}
 
 //	invokes++;
