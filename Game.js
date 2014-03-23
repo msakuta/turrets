@@ -350,6 +350,15 @@ Game.prototype.serialize = function(){
 	return JSON.stringify(saveData);
 }
 
+Game.prototype.removeTower = function(tower){
+	var ind = this.towers.indexOf(tower);
+	if(ind < 0)
+		return false;
+	this.towers.splice(ind, 1);
+	tower.onDelete();
+	return true;
+}
+
 Game.prototype.draw = function(ctx){
 	ctx.fillStyle = "#000";
 	ctx.clearRect(0,0,this.width,this.height);

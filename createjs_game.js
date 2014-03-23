@@ -10,6 +10,7 @@ var explosionSpriteTemplate;
 var hitSpriteTemplate;
 var pauseText;
 var boughtTower = null;
+var deleteShape;
 
 function init(){
 	canvas = document.getElementById("scratch");
@@ -72,6 +73,10 @@ function init(){
 			t.x = graph.x;
 			t.y = graph.y;
 			game.moving = false;
+			var localPoint = deleteShape.globalToLocal(graph.x, graph.y);
+			if(deleteShape.hitTest(localPoint.x, localPoint.y)){
+				game.removeTower(t);
+			}
 		});
 		t.onUpdate = function(dt){
 			shape.rotation = this.angle * 360 / 2 / Math.PI + 90;
@@ -81,6 +86,9 @@ function init(){
 				tiptext.text = "Kills: " + this.kills;
 				tiptext2.text = "Damage: " + this.damage;
 			}
+		}
+		t.onDelete = function(){
+			towerContainer.removeChild(graph);
 		}
 	}
 	game.addEnemyEvent = function(e){
@@ -172,6 +180,19 @@ function init(){
 		boughtTower = null;
 	});
 	stage.addChild(buyButton);
+
+	var deleteButton = new createjs.Container();
+	deleteShape = new createjs.Shape();
+	deleteShape.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 30, 30);
+	deleteButton.addChild(deleteShape);
+	var deleteButtonImage = new createjs.Bitmap("assets/trashcan.png");
+	deleteButtonImage.x = 5;
+	deleteButtonImage.y = 5;
+	deleteButtonImage.hitArea = deleteShape;
+	deleteButton.addChild(deleteButtonImage);
+	deleteButton.x = width - 40;
+	deleteButton.y = height - 40;
+	stage.addChild(deleteButton);
 
 
 	// create spritesheet for explosion (Enemy death).
