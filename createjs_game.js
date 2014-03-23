@@ -63,6 +63,16 @@ function init(){
 			inactiveShape.visible = true;
 			activeShape.visible = false;
 		});
+		graph.on("pressmove", function(evt){
+			game.moving = true;
+			graph.x = evt.stageX;
+			graph.y = evt.stageY;
+		});
+		graph.on("pressup", function(evt){
+			t.x = graph.x;
+			t.y = graph.y;
+			game.moving = false;
+		});
 		t.onUpdate = function(dt){
 			shape.rotation = this.angle * 360 / 2 / Math.PI;
 			graph.x = this.x;
@@ -131,6 +141,8 @@ function init(){
 
 	// Clicking toggles pause state
 	stage.addEventListener("stagemouseup", function(event){
+		if(game.moving)
+			return;
 		game.pause = !game.pause;
 		pauseText.visible = game.pause;
 		if(game.pause)

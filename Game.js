@@ -248,6 +248,7 @@ function Game(width, height){
 	this.bullets = [];
 	this.enemies = [];
 	this.pause = false;
+	this.moving = false; ///< Moving something (temporary pause)
 	this.mouseX = 0;
 	this.mouseY = 0;
 	this.cookie_time = 0;
@@ -280,7 +281,7 @@ Game.prototype.init = function(){
 }
 
 Game.prototype.update = function(dt, autoSaveHandler){
-	if(this.pause)
+	if(this.pause || this.moving)
 		return;
 
 	if(this.towers.length == 0)
