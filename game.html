@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Tower Defense Game Test</title>
+	<meta charset="UTF-8" />
+</head>
+<body>
+	<div id="header">
+		<h1>Tower Defense Game Test</h1>
+	</div>
+	<canvas id="scratch" width="400px" height="400px" style="width: 400px; height: 400px;"></canvas>
+	<div id="timeText"/>
+	<script type="text/javascript" src="xorshift.js"></script>
+	<script type="text/javascript" src="Game.js"></script>
+	<script type="text/javascript">
+var canvas;
+var width;
+var height;
+
+var game;
+
+window.onload = function() {
+	canvas = document.getElementById("scratch");
+	if ( ! canvas || ! canvas.getContext ) {
+		return false;
+	}
+	width = parseInt(canvas.style.width);
+	height = parseInt(canvas.style.height);
+	game = new Game(width, height);
+
+	var loop = function() {
+		draw();
+		var timer = setTimeout(loop,100);
+	};
+
+	loop();
+};
+
+function resetTrans(ctx){
+	ctx.setTransform(1,0,0,1,200,200);
+}
+
+function draw() {
+	game.update(0.1);
+
+	var ctx = canvas.getContext('2d');
+
+	game.draw(ctx);
+
+}
+	</script>
+</body>
+</html>
