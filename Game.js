@@ -200,6 +200,30 @@ Enemy.prototype.onDelete = function(dt){
 
 
 
+function GetCookie( name )
+{
+    var result = null;
+
+    var cookieName = name + '=';
+    var allcookies = document.cookie;
+
+    var position = allcookies.indexOf( cookieName );
+    if( position != -1 )
+    {
+        var startIndex = position + cookieName.length;
+
+        var endIndex = allcookies.indexOf( ';', startIndex );
+        if( endIndex == -1 )
+        {
+            endIndex = allcookies.length;
+        }
+
+        result = decodeURIComponent(
+            allcookies.substring( startIndex, endIndex ) );
+    }
+
+    return result;
+}
 
 function Game(width, height){
 	this.width = width;
@@ -211,11 +235,19 @@ function Game(width, height){
 	this.bullets = [];
 	this.enemies = [];
 //	document.write(width + " " + height + ";");
-	for(var i = 0; i < n; i++)
+	for(var i = 0; i < n; i++){
 		this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
+		var kills = GetCookie("tower" + i + ".kills");
+		if(kills != null)
+			this.towers[i].kills = parseInt(kills);
+		var damage = GetCookie("tower" + i + ".damage");
+		if(damage != null)
+			this.towers[i].damage = parseInt(damage);
+	}
 	this.pause = false;
 	this.mouseX = 0;
 	this.mouseY = 0;
+	this.cookie_time = 0;
 }
 
 Game.prototype.global_time = 0;
@@ -271,6 +303,15 @@ Game.prototype.update = function(dt){
 		}
 		else
 			i++;
+	}
+
+	if(this.cookie_time + 10. < Game.prototype.global_time){
+		for(var i = 0; i < this.towers.length; i++){
+			var v = this.towers[i];
+			document.cookie = "tower" + i + ".kills=" + v.kills;
+			document.cookie = "tower" + i + ".damage=" + v.damage;
+		}
+		this.cookie_time += 10.;
 	}
 
 //	invokes++;
