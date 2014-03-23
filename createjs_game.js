@@ -1,5 +1,6 @@
 var stage;
 var towerContainer;
+var enemyContainer;
 var canvas;
 var width;
 var height;
@@ -8,6 +9,7 @@ var game;
 var explosionSpriteTemplate;
 var hitSpriteTemplate;
 var pauseText;
+var boughtTower = null;
 
 function init(){
 	canvas = document.getElementById("scratch");
@@ -84,13 +86,13 @@ function init(){
 	game.addEnemyEvent = function(e){
 		var shape = new createjs.Shape();
 		shape.graphics.beginFill("#ff0000").beginStroke("#00ffff").drawCircle(0, 0, 7.5);
-		stage.addChild(shape);
+		enemyContainer.addChild(shape);
 		e.onUpdate = function(dt){
 			shape.x = this.x;
 			shape.y = this.y;
 		}
 		e.onDelete = function(){
-			stage.removeChild(shape);
+			enemyContainer.removeChild(shape);
 			var sprite = explosionSpriteTemplate.clone();
 			sprite.x = this.x;
 			sprite.y = this.y;
@@ -134,11 +136,42 @@ function init(){
 	towerContainer = new createjs.Container();
 	stage.addChild(towerContainer);
 
+	enemyContainer = new createjs.Container();
+	stage.addChild(enemyContainer);
+
 	pauseText = new createjs.Text("PAUSED", "Bold 40px Arial", "#ff7f7f");
 	pauseText.visible = false;
 	pauseText.x = (width - pauseText.getBounds().width) / 2;
 	pauseText.y = (height - pauseText.getBounds().height) / 2;
 	stage.addChild(pauseText);
+
+	var buyButton = new createjs.Container();
+	var buyButtonFrame = new createjs.Shape();
+	buyButtonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 30, 30);
+	buyButton.addChild(buyButtonFrame);
+	var buyButtonImage = new createjs.Bitmap("assets/turret.png");
+	buyButtonImage.x = 5;
+	buyButtonImage.y = 5;
+	buyButtonImage.hitArea = buyButtonFrame;
+	buyButton.addChild(buyButtonImage);
+	buyButton.x = width - 40;
+	buyButton.y = 10;
+	buyButton.on("pressmove", function(evt){
+		if(boughtTower == null){
+			boughtTower = new Tower(game, buyButton.x, buyButton.y);
+			game.towers.push(boughtTower);
+			game.addTowerEvent(boughtTower);
+		}
+		game.moving = true;
+		boughtTower.x = evt.stageX;
+		boughtTower.y = evt.stageY;
+		boughtTower.onUpdate(0);
+	});
+	buyButton.on("pressup", function(evt){
+		game.moving = false;
+		boughtTower = null;
+	});
+	stage.addChild(buyButton);
 
 
 	// create spritesheet for explosion (Enemy death).
