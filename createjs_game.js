@@ -1,4 +1,5 @@
 var stage;
+var towerContainer;
 var canvas;
 var width;
 var height;
@@ -52,7 +53,7 @@ function init(){
 		graph.addChild(shape);
 		graph.addChild(text);
 		graph.addChild(tip);
-		stage.addChild(graph);
+		towerContainer.addChild(graph);
 		graph.addEventListener("mouseover", function(event){
 			tip.visible = true;
 			inactiveShape.visible = false;
@@ -133,6 +134,9 @@ function init(){
 	stage = new createjs.Stage("scratch");
 	stage.enableMouseOver();
 
+	towerContainer = new createjs.Container();
+	stage.addChild(towerContainer);
+
 	var pauseText = new createjs.Text("PAUSED", "Bold 40px Arial", "#ff7f7f");
 	pauseText.visible = false;
 	pauseText.x = (width - pauseText.getBounds().width) / 2;
@@ -180,4 +184,20 @@ function init(){
 function tick(event){
 	game.update(0.1, function(){});
 	stage.update();
+}
+
+function reset(){
+	if(confirm("Are you sure to reset progress?")){
+		localStorage.clear();
+		init();
+	}
+}
+
+function save(){
+	return game.serialize();
+}
+
+function load(state){
+	towerContainer.removeAllChildren();
+	game.deserialize(state);
 }

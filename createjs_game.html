@@ -14,6 +14,11 @@
 	<canvas id="scratch" width="400px" height="400px" style="width: 400px; height: 400px;"></canvas>
 	<div id="text"></div>
 	<div id="savetext"></div>
+	<input type="button" value="get state" onclick="document.getElementById('saveText').value = save()"></input>
+	<input type="button" value="set state" onclick="load(document.getElementById('saveText').value)"></input>
+	<input type="button" value="reset" onclick="reset()"></input>
+	Serialized game text:
+	<input id="saveText" type="text" value=""></input>
 	<hr>
 	<div>Powered by <a href="http://createjs.com/">CreateJS</a>/<a href="http://createjs.com/#!/EaselJS/demos">EaselJS</a></div>
 </body>

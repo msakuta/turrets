@@ -257,33 +257,37 @@ function Game(width, height){
 Game.prototype.global_time = 0;
 
 Game.prototype.init = function(){
-
 	if(typeof(Storage) !== "undefined"){
-		var data = JSON.parse(localStorage.getItem("towers"));
-		if(data != null){
-			for(var i = 0; i < data.length; i++){
-				var tow = data[i];
-				if(tow){
-					var newTower = new Tower(this, tow.x, tow.y);
-					newTower.angle = tow.angle;
-					newTower.kills = tow.kills;
-					newTower.damage = tow.damage;
-					this.towers.push(newTower);
-					this.addTowerEvent(newTower);
-				}
-			}
-		}
-		else{
-			var rng = this.rng;
-			var n = 3;
-			this.towers = new Array(n);
-			for(var i = 0; i < n; i++){
-				this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
-				this.addTowerEvent(this.towers[i]);
+		this.deserialize(localStorage.getItem("towers"));
+	}
+}
+
+Game.prototype.deserialize = function(stream){
+	var data = JSON.parse(stream);
+	if(data != null){
+		this.towers = [];
+		for(var i = 0; i < data.length; i++){
+			var tow = data[i];
+			if(tow){
+				var newTower = new Tower(this, tow.x, tow.y);
+				newTower.id = i;
+				newTower.angle = tow.angle;
+				newTower.kills = tow.kills;
+				newTower.damage = tow.damage;
+				this.towers.push(newTower);
+				this.addTowerEvent(newTower);
 			}
 		}
 	}
-
+	else{
+		var rng = this.rng;
+		var n = 3;
+		this.towers = new Array(n);
+		for(var i = 0; i < n; i++){
+			this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
+			this.addTowerEvent(this.towers[i]);
+		}
+	}
 }
 
 Game.prototype.update = function(dt, autoSaveHandler){
@@ -355,19 +359,9 @@ Game.prototype.update = function(dt, autoSaveHandler){
 
 		// Check for localStorage
 		if(typeof(Storage) !== "undefined"){
-			for(var i = 0; i < this.towers.length; i++){
-				var v = this.towers[i];
-				localStorage.setItem("tower" + i + ".kills", v.kills);
-				localStorage.setItem("tower" + i + ".damage", v.damage);
-			}
-
-			var saveData = [];
-			for(var i = 0; i < this.towers.length; i++){
-				var v = this.towers[i];
-				saveData.push({kills: v.kills, damage: v.damage, x: v.x, y: v.y, angle: v.angle});
-			}
-			localStorage.setItem("towers", JSON.stringify(saveData));
-			autoSaveHandler(JSON.stringify(saveData));
+			var serialData = this.serialize();
+			localStorage.setItem("towers", serialData);
+			autoSaveHandler(serialData);
 		}
 
 		this.cookie_time += 10.;
@@ -375,6 +369,15 @@ Game.prototype.update = function(dt, autoSaveHandler){
 
 //	invokes++;
 	Game.prototype.global_time += dt;
+}
+
+Game.prototype.serialize = function(){
+	var saveData = [];
+	for(var i = 0; i < this.towers.length; i++){
+		var v = this.towers[i];
+		saveData.push({kills: v.kills, damage: v.damage, x: v.x, y: v.y, angle: v.angle});
+	}
+	return JSON.stringify(saveData);
 }
 
 Game.prototype.draw = function(ctx){
