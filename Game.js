@@ -257,23 +257,29 @@ function Game(width, height){
 Game.prototype.global_time = 0;
 
 Game.prototype.init = function(){
-	var rng = this.rng;
-	var n = 3;
-	this.towers = new Array(n);
-	for(var i = 0; i < n; i++){
-		this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
-		this.addTowerEvent(this.towers[i]);
-	}
 
 	if(typeof(Storage) !== "undefined"){
 		var data = JSON.parse(localStorage.getItem("towers"));
 		if(data != null){
 			for(var i = 0; i < data.length; i++){
-				var tow = data[0];
+				var tow = data[i];
 				if(tow){
-					this.towers[i].kills = tow.kills;
-					this.towers[i].damage = tow.damage;
+					var newTower = new Tower(this, tow.x, tow.y);
+					newTower.angle = tow.angle;
+					newTower.kills = tow.kills;
+					newTower.damage = tow.damage;
+					this.towers.push(newTower);
+					this.addTowerEvent(newTower);
 				}
+			}
+		}
+		else{
+			var rng = this.rng;
+			var n = 3;
+			this.towers = new Array(n);
+			for(var i = 0; i < n; i++){
+				this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
+				this.addTowerEvent(this.towers[i]);
 			}
 		}
 	}
@@ -358,7 +364,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 			var saveData = [];
 			for(var i = 0; i < this.towers.length; i++){
 				var v = this.towers[i];
-				saveData.push({kills: v.kills, damage: v.damage});
+				saveData.push({kills: v.kills, damage: v.damage, x: v.x, y: v.y, angle: v.angle});
 			}
 			localStorage.setItem("towers", JSON.stringify(saveData));
 			autoSaveHandler(JSON.stringify(saveData));
