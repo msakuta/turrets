@@ -4,6 +4,9 @@ var width;
 var height;
 var game;
 
+var explosionSpriteTemplate;
+var hitSpriteTemplate;
+
 function init(){
 	canvas = document.getElementById("scratch");
 	width = parseInt(canvas.style.width);
@@ -80,6 +83,17 @@ function init(){
 		}
 		e.onDelete = function(){
 			stage.removeChild(shape);
+			var sprite = explosionSpriteTemplate.clone();
+			sprite.x = this.x;
+			sprite.y = this.y;
+			// Start playing explosion animation
+			sprite.gotoAndPlay("explosion");
+			// Make the effect disappear when it finishes playing
+			sprite.addEventListener("animationend", function(event){
+				event.target.stop();
+				stage.removeChild(event.target);
+			});
+			stage.addChild(sprite);
 		}
 	}
 	game.addBulletEvent = function(b){
@@ -93,17 +107,54 @@ function init(){
 		}
 		b.onDelete = function(){
 			stage.removeChild(shape);
+			var sprite = hitSpriteTemplate.clone();
+			sprite.x = this.x;
+			sprite.y = this.y;
+			// Start playing hit animation
+			sprite.gotoAndPlay("explosion");
+			// Make the effect disappear when it finishes playing
+			sprite.addEventListener("animationend", function(event){
+				event.target.stop();
+				stage.removeChild(event.target);
+			});
+			stage.addChild(sprite);
 		}
 	}
 	stage = new createjs.Stage("scratch");
 	stage.enableMouseOver();
-	stage.addEventListener("click", function(event){
+
+	// Adding an event handler for mouse click to stage itself seems to cause problem
+	// by unknown reason.
+/*	stage.addEventListener("click", function(event){
 		game.pause = !game.pause;
+	});*/
+
+
+	// create spritesheet for explosion (Enemy death).
+	var explosionSpriteSheet = new createjs.SpriteSheet({
+		images: ["assets/explode2.png"],
+		frames: {width: 32, height: 32, regX: 16, regY: 16},
+		animations: {
+			explosion: [0, 6, null, 0.5],
+		}
 	});
 
-	createjs.Ticker.addEventListener("tick", tick);
+	// create a Sprite instance to display and play back the sprite sheet:
+	explosionSpriteTemplate = new createjs.Sprite(explosionSpriteSheet);
 
-	stage.update();
+	// create spritesheet for Bullet hit effect.
+	var hitSpriteSheet = new createjs.SpriteSheet({
+		images: ["assets/explode.png"],
+		frames: {width: 16, height: 16, regX: 8, regY: 8},
+		animations: {
+			explosion: [0, 6],
+		}
+	});
+
+	// create a Sprite instance to display and play back the sprite sheet:
+	hitSpriteTemplate = new createjs.Sprite(hitSpriteSheet);
+
+	createjs.Ticker.addEventListener("tick", tick);
 }
 
 function tick(event){
