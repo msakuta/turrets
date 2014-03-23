@@ -123,11 +123,19 @@ function init(){
 	stage = new createjs.Stage("scratch");
 	stage.enableMouseOver();
 
-	// Adding an event handler for mouse click to stage itself seems to cause problem
-	// by unknown reason.
-/*	stage.addEventListener("click", function(event){
+	var pauseText = new createjs.Text("PAUSED", "Bold 40px Arial", "#ff7f7f");
+	pauseText.visible = false;
+	pauseText.x = (width - pauseText.getBounds().width) / 2;
+	pauseText.y = (height - pauseText.getBounds().height) / 2;
+	stage.addChild(pauseText);
+
+	// Clicking toggles pause state
+	stage.addEventListener("stagemouseup", function(event){
 		game.pause = !game.pause;
-	});*/
+		pauseText.visible = game.pause;
+		if(game.pause)
+			stage.setChildIndex(pauseText, stage.getNumChildren()-1);
+	});
 
 
 	// create spritesheet for explosion (Enemy death).
