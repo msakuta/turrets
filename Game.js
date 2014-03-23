@@ -40,12 +40,15 @@ Tower.prototype.update = function(dt){
 			var ofs = mattvp(mat, [0, i * 5]);
 			var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this);
 			this.game.bullets.push(b);
+			this.game.addBulletEvent(b);
 		}
 		this.cooldown = 4;
 	}
 
 	if(0 < this.cooldown)
 		this.cooldown--;
+
+	this.onUpdate(dt);
 
 	return true;
 }
@@ -101,6 +104,12 @@ Tower.prototype.measureDistance = function(other){
 	return Math.sqrt((this.x - other.x) * (this.x - other.x) + (this.y - other.y) * (this.y - other.y));
 }
 
+Tower.prototype.onUpdate = function(dt){
+}
+
+Tower.prototype.onDelete = function(){
+}
+
 
 function Bullet(game,x,y,vx,vy,angle,owner){
 	this.game = game;
@@ -125,6 +134,7 @@ Bullet.prototype.update = function(dt){
 			return 0;
 		}
 	}
+	this.onUpdate(dt);
 	return 0 < this.x && this.x < this.game.width && 0 < this.y && this.y < this.game.height;
 }
 
@@ -137,7 +147,11 @@ Bullet.prototype.draw = function(ctx){
 	ctx.setTransform(1,0,0,1,0,0);
 }
 
-Bullet.prototype.onDelete = function(dt){
+Bullet.prototype.onUpdate = function(dt){
+	// Default does nothing
+}
+
+Bullet.prototype.onDelete = function(){
 	// Default does nothing
 }
 
@@ -167,6 +181,7 @@ Enemy.prototype.damage = function(dmg){
 	if(this.health <= 0){
 		var ind = this.game.enemies.indexOf(this);
 		this.game.enemies.splice(ind, 1);
+		this.onDelete();
 		return true;
 	}
 	return false;
@@ -193,7 +208,7 @@ Enemy.prototype.onUpdate = function(dt){
 	// Default does nothing
 }
 
-Enemy.prototype.onDelete = function(dt){
+Enemy.prototype.onDelete = function(){
 	// Default does nothing
 }
 
@@ -229,29 +244,24 @@ function Game(width, height){
 	this.width = width;
 	this.height = height;
 	this.rng = new Xor128(); // Create Random Number Generator
+	this.towers = [];
+	this.bullets = [];
+	this.enemies = [];
+	this.pause = false;
+	this.mouseX = 0;
+	this.mouseY = 0;
+	this.cookie_time = 0;
+}
+
+Game.prototype.global_time = 0;
+
+Game.prototype.init = function(){
 	var rng = this.rng;
 	var n = 3;
 	this.towers = new Array(n);
-	this.bullets = [];
-	this.enemies = [];
-//	document.write(width + " " + height + ";");
 	for(var i = 0; i < n; i++){
 		this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
-/*		var kills = GetCookie("tower" + i + ".kills");
-		if(kills != null)
-			this.towers[i].kills = parseInt(kills);
-		var damage = GetCookie("tower" + i + ".damage");
-		if(damage != null)
-			this.towers[i].damage = parseInt(damage);*/
-		// Check for localStorage
-/*		if(typeof(Storage) !== "undefined"){
-			var kills = localStorage.getItem("tower" + i + ".kills");
-			if(kills != null)
-				this.towers[i].kills = parseInt(kills);
-			var damage = localStorage.getItem("tower" + i + ".damage");
-			if(damage != null)
-				this.towers[i].damage = parseInt(damage);
-		}*/
+		this.addTowerEvent(this.towers[i]);
 	}
 
 	if(typeof(Storage) !== "undefined"){
@@ -267,17 +277,14 @@ function Game(width, height){
 		}
 	}
 
-	this.pause = false;
-	this.mouseX = 0;
-	this.mouseY = 0;
-	this.cookie_time = 0;
 }
-
-Game.prototype.global_time = 0;
 
 Game.prototype.update = function(dt, autoSaveHandler){
 	if(this.pause)
 		return;
+
+	if(this.towers.length == 0)
+		this.init();
 
 	for(var i = 0; i < this.towers.length;){
 		var v = this.towers[i];
@@ -293,18 +300,22 @@ Game.prototype.update = function(dt, autoSaveHandler){
 		if(edge == 0){
 			var e = new Enemy(this, 0, this.height * this.rng.next());
 			this.enemies.push(e);
+			this.addEnemyEvent(e);
 		}
 		else if(edge == 1){
 			var e = new Enemy(this, this.width, this.height * this.rng.next());
 			this.enemies.push(e);
+			this.addEnemyEvent(e);
 		}
 		else if(edge == 2){
 			var e = new Enemy(this, this.width * this.rng.next(), 0);
 			this.enemies.push(e);
+			this.addEnemyEvent(e);
 		}
 		else if(edge == 3){
 			var e = new Enemy(this, this.width * this.rng.next(), this.height);
 			this.enemies.push(e);
+			this.addEnemyEvent(e);
 		}
 	}
 
@@ -401,4 +412,13 @@ Game.prototype.mouseMove = function(e){
 	var rect = e.target.getBoundingClientRect();
 	this.mouseX = e.clientX - rect.left;
 	this.mouseY = e.clientY - rect.top;
+}
+
+Game.prototype.addTowerEvent = function(t){
+}
+
+Game.prototype.addEnemyEvent = function(e){
+}
+
+Game.prototype.addBulletEvent = function(b){
 }
