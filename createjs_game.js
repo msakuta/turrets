@@ -174,6 +174,8 @@ function init(){
 	pauseText.y = (height - pauseText.getBounds().height) / 2;
 	stage.addChild(pauseText);
 
+	var overlay = new createjs.Container();
+
 	var statusPanel = new createjs.Container();
 	var statusPanelFrame = new createjs.Shape();
 	statusPanelFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 80, 30);
@@ -195,11 +197,36 @@ function init(){
 	statusPanel.addChild(statusText2);
 	statusPanel.x = 5;
 	statusPanel.y = 5;
-	stage.addChild(statusPanel);
+	overlay.addChild(statusPanel);
+
+	var buyTip = new createjs.Container();
+	var buyTipFrame = new createjs.Shape();
+	buyTipFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 100, 35);
+	buyTip.addChild(buyTipFrame);
+	var buyTipText = new createjs.Text("Machine Gun", "10px Helvetica", "#ffffff");
+	buyTipText.y = 0;
+	buyTipText.x = 5;
+	buyTip.addChild(buyTipText);
+	var buyTipText2 = new createjs.Text("Cost: " + Tower.prototype.cost(), "10px Helvetica", "#ffffff");
+	buyTipText2.y = 10;
+	buyTipText2.x = 5;
+	buyTipText2.on("tick", function(evt){
+		buyTipText2.text = "Cost: " + Tower.prototype.cost();
+	});
+	buyTip.addChild(buyTipText2);
+	var buyTipText3 = new createjs.Text("Drag & Drop to buy", "10px Helvetica", "#ffff00");
+	buyTipText3.y = 20;
+	buyTipText3.x = 5;
+	buyTip.addChild(buyTipText3);
+	buyTip.x = width - 100;
+	buyTip.y = 45;
+	buyTip.visible = false;
+	overlay.addChild(buyTip);
 
 	var buyButton = new createjs.Container();
 	var buyButtonFrame = new createjs.Shape();
 	buyButtonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 30, 30);
+	buyButtonFrame.alpha = 0.5;
 	buyButton.addChild(buyButtonFrame);
 	var buyButtonImage = new createjs.Bitmap("assets/turret.png");
 	buyButtonImage.x = 5;
@@ -208,14 +235,18 @@ function init(){
 	buyButton.addChild(buyButtonImage);
 	buyButton.x = width - 40;
 	buyButton.y = 10;
+	buyButton.on("tick", function(evt){
+		buyButtonImage.alpha = game.credit < Tower.prototype.cost() ? 0.25 : 1.;
+	});
 	buyButton.on("pressmove", function(evt){
 		if(boughtTower == null){
-			if(game.credit < Tower.prototype.cost)
+			var cost = Tower.prototype.cost();
+			if(game.credit < cost)
 				return;
 			boughtTower = new Tower(game, buyButton.x, buyButton.y);
 			game.towers.push(boughtTower);
 			game.addTowerEvent(boughtTower);
-			game.credit -= Tower.prototype.cost;
+			game.credit -= cost;
 		}
 		game.moving = true;
 		boughtTower.x = evt.stageX;
@@ -226,7 +257,17 @@ function init(){
 		game.moving = false;
 		boughtTower = null;
 	});
-	stage.addChild(buyButton);
+	buyButton.on("pressup", function(evt){
+		game.moving = false;
+		boughtTower = null;
+	});
+	buyButton.on("mouseover", function(evt){
+		buyTip.visible = true;
+	});
+	buyButton.on("mouseout", function(evt){
+		buyTip.visible = false;
+	});
+	overlay.addChild(buyButton);
 
 	var deleteButton = new createjs.Container();
 	deleteShape = new createjs.Shape();
@@ -239,7 +280,9 @@ function init(){
 	deleteButton.addChild(deleteButtonImage);
 	deleteButton.x = width - 40;
 	deleteButton.y = height - 40;
-	stage.addChild(deleteButton);
+	overlay.addChild(deleteButton);
+
+	stage.addChild(overlay);
 
 
 	// create spritesheet for explosion (Enemy death).

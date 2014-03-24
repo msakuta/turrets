@@ -122,7 +122,10 @@ Tower.prototype.draw = function(ctx,mouseon){
 }
 
 Tower.prototype.idGen = 0;
-Tower.prototype.cost = 100;
+
+Tower.prototype.cost = function(){
+	return Math.ceil(Math.pow(1.5, game.towers.length) * 100);
+}
 
 Tower.prototype.getPos = function(){
 	return new Array(this.x, this.y);
