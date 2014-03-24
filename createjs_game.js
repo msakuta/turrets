@@ -210,9 +210,12 @@ function init(){
 	buyButton.y = 10;
 	buyButton.on("pressmove", function(evt){
 		if(boughtTower == null){
+			if(game.credit < Tower.prototype.cost)
+				return;
 			boughtTower = new Tower(game, buyButton.x, buyButton.y);
 			game.towers.push(boughtTower);
 			game.addTowerEvent(boughtTower);
+			game.credit -= Tower.prototype.cost;
 		}
 		game.moving = true;
 		boughtTower.x = evt.stageX;
