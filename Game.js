@@ -4,11 +4,14 @@ function Tower(game,x,y){
 	this.x = x;
 	this.y = y;
 	this.angle = 0;
+	this.health = 10;
+	this.maxHealth = 10;
 	this.target = null;
 	this.id = Tower.prototype.idGen++;
 	this.cooldown = 4;
 	this.kills = 0;
 	this.damage = 0;
+	this.team = 0;
 }
 
 Tower.prototype.update = function(dt){
@@ -38,9 +41,7 @@ Tower.prototype.update = function(dt){
 		}
 		for(var i = -1; i <= 1; i += 2){
 			var ofs = mattvp(mat, [0, i * 5]);
-			var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this);
-			this.game.bullets.push(b);
-			this.game.addBulletEvent(b);
+			this.game.addBullet(new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this));
 		}
 		this.cooldown = 4;
 	}
@@ -51,6 +52,17 @@ Tower.prototype.update = function(dt){
 	this.onUpdate(dt);
 
 	return true;
+}
+
+Tower.prototype.receiveDamage = function(dmg){
+	this.health -= dmg;
+	if(this.health <= 0){
+		var ind = this.game.towers.indexOf(this);
+		this.game.towers.splice(ind, 1);
+		this.onDelete();
+		return true;
+	}
+	return false;
 }
 
 Tower.prototype.draw = function(ctx,mouseon){
@@ -119,17 +131,18 @@ function Bullet(game,x,y,vx,vy,angle,owner){
 	this.vy = vy;
 	this.angle = angle;
 	this.owner = owner;
+	this.team = owner.team;
 }
 
 Bullet.prototype.update = function(dt){
 	this.x += this.vx * dt;
 	this.y += this.vy * dt;
-	var enemies = this.game.enemies;
+	var enemies = this.team == 0 ? this.game.enemies : this.game.towers;
 	for(var i = 0; i < enemies.length; i++){
 		var e = enemies[i];
 		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < 10 * 10){
 			this.owner.damage++;
-			if(e.damage(1))
+			if(e.receiveDamage(1))
 				this.owner.kills++;
 			return 0;
 		}
@@ -163,6 +176,7 @@ function Enemy(game,x,y){
 	this.vx = 0;
 	this.vy = 0;
 	this.health = 10;
+	this.team = 1;
 }
 
 Enemy.prototype.update = function(dt){
@@ -172,11 +186,23 @@ Enemy.prototype.update = function(dt){
 	this.vy *= 0.8;
 	this.x += this.vx * dt;
 	this.y += this.vy * dt;
+	if(this.game.rng.next() < 0.01){
+		var spd = 100.;
+		var angle = this.game.rng.next() * Math.PI * 2.;
+		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+		function matvp(m,v){
+			return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]];
+		}
+		function mattvp(m,v){
+			return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]];
+		}
+		this.game.addBullet(new Bullet(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this));
+	}
 	this.onUpdate(dt);
 	return true;
 }
 
-Enemy.prototype.damage = function(dmg){
+Enemy.prototype.receiveDamage = function(dmg){
 	this.health -= dmg;
 	if(this.health <= 0){
 		var ind = this.game.enemies.indexOf(this);
@@ -357,6 +383,11 @@ Game.prototype.removeTower = function(tower){
 	this.towers.splice(ind, 1);
 	tower.onDelete();
 	return true;
+}
+
+Game.prototype.addBullet = function(b){
+	this.bullets.push(b);
+	this.addBulletEvent(b);
 }
 
 Game.prototype.draw = function(ctx){

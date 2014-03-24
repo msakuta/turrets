@@ -38,9 +38,14 @@ function init(){
 		bm.hitArea = hitShape;
 		shape.addChild(bm);
 
+		var healthBar = new createjs.Container();
+		var healthBarGreen = new createjs.Shape();
+		healthBarGreen.graphics.beginFill("#0f0").drawRect(-10, -20, 20, 5);
+		healthBar.addChild(healthBarGreen);
+		healthBar.currentValue = t.health;
 		var tip = new createjs.Container();
 		var tipshape = new createjs.Shape();
-		tipshape.graphics.beginFill("#111").beginStroke("#fff").drawRect(-40, 15, 80, 20).endStroke();
+		tipshape.graphics.beginFill("#111").beginStroke("#fff").drawRect(-40, 15, 80, 30).endStroke();
 		tip.visible = false;
 		var tiptext = new createjs.Text("kills: 0", "10px Helvetica", "#ffffff");
 		tiptext.textAlign = "center";
@@ -48,9 +53,14 @@ function init(){
 		var tiptext2 = new createjs.Text("damage: 0", "10px Helvetica", "#ffffff");
 		tiptext2.y = 23;
 		tiptext2.textAlign = "center";
+		var tiptext3 = new createjs.Text("health: " + t.health, "10px Helvetica", "#ffffff");
+		tiptext3.y = 33;
+		tiptext3.textAlign = "center";
+		tip.addChild(healthBar);
 		tip.addChild(tipshape);
 		tip.addChild(tiptext);
 		tip.addChild(tiptext2);
+		tip.addChild(tiptext3);
 
 		graph.addChild(shape);
 		graph.addChild(text);
@@ -85,6 +95,17 @@ function init(){
 			if(tip.visible){
 				tiptext.text = "Kills: " + this.kills;
 				tiptext2.text = "Damage: " + this.damage;
+				tiptext3.text = "Health: " + this.health;
+				if(healthBar.currentValue != t.health){
+					healthBar.currentValue = t.health;
+					healthBar.removeAllChildren();
+					var healthBarRed = new createjs.Shape();
+					healthBarRed.graphics.beginFill("#ff0000").drawRect(-10, -20, 20, 5);
+					healthBar.addChild(healthBarRed);
+					healthBarGreen = new createjs.Shape();
+					healthBarGreen.graphics.beginFill("#0f0").drawRect(-10, -20, 20 * t.health / t.maxHealth, 5);
+					healthBar.addChild(healthBarGreen);
+				}
 			}
 		}
 		t.onDelete = function(){
@@ -116,7 +137,7 @@ function init(){
 	}
 	game.addBulletEvent = function(b){
 		var shape = new createjs.Shape();
-		shape.graphics.beginFill("#ff0000").drawRect(-5, -2, 5, 2);
+		shape.graphics.beginFill(b.team == 0 ? "#ff0000" : "#ffff00").drawRect(-5, -2, 5, 2);
 		stage.addChild(shape);
 		b.onUpdate = function(dt){
 			shape.x = this.x;
