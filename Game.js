@@ -14,6 +14,25 @@ function Tower(game,x,y){
 	this.team = 0;
 }
 
+Tower.prototype.serialize = function(){
+	var v = this;
+	return {
+		kills: v.kills,
+		damage: v.damage,
+		x: v.x,
+		y: v.y,
+		angle: v.angle,
+		health: v.health
+	};
+}
+
+Tower.prototype.deserialize = function(data){
+	this.angle = data.angle;
+	this.kills = data.kills;
+	this.damage = data.damage;
+	this.health = data.health;
+}
+
 Tower.prototype.update = function(dt){
 	var enemies = this.game.enemies;
 	var nearest = null;
@@ -287,9 +306,7 @@ Game.prototype.deserialize = function(stream){
 			if(tow){
 				var newTower = new Tower(this, tow.x, tow.y);
 				newTower.id = i;
-				newTower.angle = tow.angle;
-				newTower.kills = tow.kills;
-				newTower.damage = tow.damage;
+				newTower.deserialize(tow);
 				this.towers.push(newTower);
 				this.addTowerEvent(newTower);
 			}
@@ -387,7 +404,7 @@ Game.prototype.serialize = function(){
 	var towers = [];
 	for(var i = 0; i < this.towers.length; i++){
 		var v = this.towers[i];
-		towers.push({kills: v.kills, damage: v.damage, x: v.x, y: v.y, angle: v.angle});
+		towers.push(v.serialize());
 	}
 	saveData.towers = towers;
 	return JSON.stringify(saveData);
