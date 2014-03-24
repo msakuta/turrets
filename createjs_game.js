@@ -174,6 +174,29 @@ function init(){
 	pauseText.y = (height - pauseText.getBounds().height) / 2;
 	stage.addChild(pauseText);
 
+	var statusPanel = new createjs.Container();
+	var statusPanelFrame = new createjs.Shape();
+	statusPanelFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 80, 30);
+	statusPanelFrame.alpha = 0.5;
+	statusPanel.addChild(statusPanelFrame);
+	var statusText = new createjs.Text("Score: " + game.score, "10px Helvetica", "#ffffff");
+	statusText.y = 0;
+	statusText.x = 5;
+	statusText.on("tick", function(evt){
+		statusText.text = "Score: " + game.score;
+	});
+	statusPanel.addChild(statusText);
+	var statusText2 = new createjs.Text("Credit: " + game.credit, "10px Helvetica", "#ffffff");
+	statusText2.y = 10;
+	statusText2.x = 5;
+	statusText2.on("tick", function(evt){
+		statusText2.text = "Credit: " + game.credit;
+	});
+	statusPanel.addChild(statusText2);
+	statusPanel.x = 5;
+	statusPanel.y = 5;
+	stage.addChild(statusPanel);
+
 	var buyButton = new createjs.Container();
 	var buyButtonFrame = new createjs.Shape();
 	buyButtonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 30, 30);

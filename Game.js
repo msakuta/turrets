@@ -142,8 +142,13 @@ Bullet.prototype.update = function(dt){
 		var e = enemies[i];
 		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < 10 * 10){
 			this.owner.damage++;
-			if(e.receiveDamage(1))
+			if(e.receiveDamage(1)){
+				if(e.team != 0){
+					this.game.score += e.maxHealth;
+					this.game.credit += e.credit;
+				}
 				this.owner.kills++;
+			}
 			return 0;
 		}
 	}
@@ -176,6 +181,10 @@ function Enemy(game,x,y){
 	this.vx = 0;
 	this.vy = 0;
 	this.health = 10;
+	this.maxHealth = 10;
+	this.credit = Math.ceil(game.rng.next() * 5);
+	this.kills = 0;
+	this.damage = 0;
 	this.team = 1;
 }
 
@@ -253,6 +262,8 @@ function Game(width, height){
 	this.mouseX = 0;
 	this.mouseY = 0;
 	this.autosave_time = 0;
+	this.score = 0;
+	this.credit = 0;
 }
 
 Game.prototype.global_time = 0;
@@ -266,9 +277,12 @@ Game.prototype.init = function(){
 Game.prototype.deserialize = function(stream){
 	var data = JSON.parse(stream);
 	if(data != null){
+		this.score = data.score;
+		this.credit = data.credit;
 		this.towers = [];
-		for(var i = 0; i < data.length; i++){
-			var tow = data[i];
+		var towers = data.towers;
+		for(var i = 0; i < towers.length; i++){
+			var tow = towers[i];
 			if(tow){
 				var newTower = new Tower(this, tow.x, tow.y);
 				newTower.id = i;
@@ -368,11 +382,13 @@ Game.prototype.update = function(dt, autoSaveHandler){
 }
 
 Game.prototype.serialize = function(){
-	var saveData = [];
+	var saveData = {score: this.score, credit: this.credit};
+	var towers = [];
 	for(var i = 0; i < this.towers.length; i++){
 		var v = this.towers[i];
-		saveData.push({kills: v.kills, damage: v.damage, x: v.x, y: v.y, angle: v.angle});
+		towers.push({kills: v.kills, damage: v.damage, x: v.x, y: v.y, angle: v.angle});
 	}
+	saveData.towers = towers;
 	return JSON.stringify(saveData);
 }
 
