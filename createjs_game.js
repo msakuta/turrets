@@ -65,7 +65,15 @@ function init(){
 		graph.addChild(shape);
 		graph.addChild(text);
 		graph.addChild(tip);
+
+		// Bind the hit shape indicator to the Tower object.
+		t.hitShape = new createjs.Shape();
+		t.hitShape.graphics.beginStroke("#ff0000").drawCircle(0, 0, t.radius);
+		t.hitShape.visible = false;
+		graph.addChild(t.hitShape);
+
 		towerContainer.addChild(graph);
+
 		graph.addEventListener("mouseover", function(event){
 			tip.visible = true;
 			activeShape.visible = true;
@@ -76,17 +84,20 @@ function init(){
 		});
 		graph.on("pressmove", function(evt){
 			game.moving = true;
-			graph.x = evt.stageX;
-			graph.y = evt.stageY;
+			t.x = graph.x = evt.stageX;
+			t.y = graph.y = evt.stageY;
+			beginHit(t);
 		});
 		graph.on("pressup", function(evt){
 			t.x = graph.x;
 			t.y = graph.y;
+			game.separateTower(t);
 			game.moving = false;
 			var localPoint = deleteShape.globalToLocal(graph.x, graph.y);
 			if(deleteShape.hitTest(localPoint.x, localPoint.y)){
 				game.removeTower(t);
 			}
+			endHit();
 		});
 		t.onUpdate = function(dt){
 			shape.rotation = this.angle * 360 / 2 / Math.PI + 90;
@@ -252,14 +263,13 @@ function init(){
 		boughtTower.x = evt.stageX;
 		boughtTower.y = evt.stageY;
 		boughtTower.onUpdate(0);
+		beginHit(boughtTower);
 	});
 	buyButton.on("pressup", function(evt){
 		game.moving = false;
+		game.separateTower(boughtTower);
 		boughtTower = null;
-	});
-	buyButton.on("pressup", function(evt){
-		game.moving = false;
-		boughtTower = null;
+		endHit();
 	});
 	buyButton.on("mouseover", function(evt){
 		buyTip.visible = true;
@@ -310,6 +320,32 @@ function init(){
 	hitSpriteTemplate = new createjs.Sprite(hitSpriteSheet);
 
 	createjs.Ticker.addEventListener("tick", tick);
+
+
+	// The last hit Tower object kept tracked to hide hit shape
+	var lastHit = null;
+	// A set of functions local to this function scope.
+	// They are used to highlight intersecting towers when the player tries to
+	// place another tower on it.
+	// beginHit() should be called in "pressmove" event handler.
+	function beginHit(t){
+		if(lastHit){
+			lastHit.hitShape.visible = false;
+			lastHit = null;
+		}
+		var hit = game.hitTest(t);
+		if(hit != null){
+			hit.hitShape.visible = true;
+			lastHit = hit;
+		}
+	}
+	// endHit() should be called in "pressup" event handler.
+	function endHit(){
+		if(lastHit){
+			lastHit.hitShape.visible = false;
+			lastHit = null;
+		}
+	}
 }
 
 function tick(event){

@@ -12,6 +12,7 @@ function Tower(game,x,y){
 	this.kills = 0;
 	this.damage = 0;
 	this.team = 0;
+	this.radius = 10;
 }
 
 Tower.prototype.serialize = function(){
@@ -431,6 +432,45 @@ Game.prototype.removeTower = function(tower){
 Game.prototype.addBullet = function(b){
 	this.bullets.push(b);
 	this.addBulletEvent(b);
+}
+
+Game.prototype.hitTest = function(target){
+	for(var i = 0; i < this.towers.length; i++){
+		var t = this.towers[i];
+		if(t == target)
+			continue;
+		var dx = target.x - t.x;
+		var dy = target.y - t.y;
+		var radiusSum = target.radius + t.radius;
+		if(dx * dx + dy * dy < radiusSum * radiusSum)
+			return t;
+	}
+	return null;
+}
+
+Game.prototype.separateTower = function(tower){
+	var repeats = 10; // Try repeat count before giving up resolving all intersections
+	for(var r = 0; r < repeats; r++){
+		var moved = false;
+		for(var i = 0; i < this.towers.length; i++){
+			var t = this.towers[i];
+			if(t == tower)
+				continue;
+			var dx = tower.x - t.x;
+			var dy = tower.y - t.y;
+			if(dx == 0 && dy == 0)
+				dy = 1;
+			var radiusSum = tower.radius + t.radius;
+			if(dx * dx + dy * dy < radiusSum * radiusSum){
+				var len = Math.sqrt(dx * dx + dy * dy);
+				tower.x = t.x + dx / len * radiusSum;
+				tower.y = t.y + dy / len * radiusSum;
+				moved = true;
+			}
+		}
+		if(!moved)
+			break;
+	}
 }
 
 Game.prototype.draw = function(ctx){
