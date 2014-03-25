@@ -287,6 +287,10 @@ function Game(width, height){
 	this.autosave_time = 0;
 	this.score = 0;
 	this.credit = 0;
+
+	/// A flag to defer initialization of game state to enale calling logic to
+	/// set event handlers on object creation in deserialization.
+	this.initialized = false;
 }
 
 Game.prototype.global_time = 0;
@@ -295,6 +299,7 @@ Game.prototype.init = function(){
 	if(typeof(Storage) !== "undefined"){
 		this.deserialize(localStorage.getItem("towers"));
 	}
+	this.initialized = true;
 }
 
 Game.prototype.deserialize = function(stream){
@@ -330,7 +335,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 	if(this.pause || this.moving)
 		return;
 
-	if(this.towers.length == 0)
+	if(!this.initialized)
 		this.init();
 
 	for(var i = 0; i < this.towers.length;){
@@ -417,7 +422,8 @@ Game.prototype.removeTower = function(tower){
 	var ind = this.towers.indexOf(tower);
 	if(ind < 0)
 		return false;
-	this.towers.splice(ind, 1);
+	else
+		this.towers.splice(ind, 1);
 	tower.onDelete();
 	return true;
 }
