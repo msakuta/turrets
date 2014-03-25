@@ -113,7 +113,7 @@ function init(){
 			graph.y = this.y;
 			if(tip.visible){
 				tiptext.text = "Kills: " + this.kills;
-				tiptext2.text = "Damage: " + this.damage;
+				tiptext2.text = "Damage: " + Math.round(this.damage);
 				tiptext3.text = "Health: " + this.health + "/" + this.maxHealth();
 				tiptext4.text = "Level: " + this.level;
 				tiptext5.text = "XP: " + this.xp + "/" + this.maxXp();

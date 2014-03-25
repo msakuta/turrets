@@ -78,7 +78,9 @@ Tower.prototype.update = function(dt){
 		}
 		for(var i = -1; i <= 1; i += 2){
 			var ofs = mattvp(mat, [0, i * 5]);
-			this.game.addBullet(new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this));
+			var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this);
+			b.damage = Math.pow(1.2, this.level);
+			this.game.addBullet(b);
 		}
 		this.cooldown = 4;
 	}
@@ -190,6 +192,7 @@ function Bullet(game,x,y,vx,vy,angle,owner){
 	this.angle = angle;
 	this.owner = owner;
 	this.team = owner.team;
+	this.damage = 1;
 }
 
 Bullet.prototype.update = function(dt){
@@ -199,8 +202,8 @@ Bullet.prototype.update = function(dt){
 	for(var i = 0; i < enemies.length; i++){
 		var e = enemies[i];
 		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < 10 * 10){
-			this.owner.damage++;
-			if(e.receiveDamage(1)){
+			this.owner.damage += this.damage;
+			if(e.receiveDamage(this.damage)){
 				this.owner.onKill(e);
 			}
 			return 0;
