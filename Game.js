@@ -381,7 +381,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 			i++;
 	}
 
-	if(this.enemies.length < 20){
+	if(this.enemies.length < this.score / 100 + 20){
 		var edge = this.rng.nexti() % 4;
 		if(edge == 0){
 			var e = new Enemy(this, 0, this.height * this.rng.next());
