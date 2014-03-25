@@ -114,7 +114,7 @@ function init(){
 					healthBarRed.graphics.beginFill("#ff0000").drawRect(-10, -20, 20, 5);
 					healthBar.addChild(healthBarRed);
 					healthBarGreen = new createjs.Shape();
-					healthBarGreen.graphics.beginFill("#0f0").drawRect(-10, -20, 20 * t.health / t.maxHealth, 5);
+					healthBarGreen.graphics.beginFill("#0f0").drawRect(-10, -20, 20 * t.health / t.maxHealth(), 5);
 					healthBar.addChild(healthBarGreen);
 				}
 			}

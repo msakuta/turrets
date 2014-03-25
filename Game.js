@@ -1,19 +1,30 @@
 
-function Tower(game,x,y){
+// Base class definition of in-game objects.
+function Entity(game,x,y){
 	this.game = game;
 	this.x = x;
 	this.y = y;
+	this.vx = 0;
+	this.vy = 0;
+	this.health = 10;
+	this.maxHealth = function(){return 10;}
+	this.team = 0;
+	this.radius = 10;
+}
+Entity.prototype.onKill = function(){};
+
+function Tower(game,x,y){
+	Entity.call(this,game,x,y);
 	this.angle = 0;
 	this.health = 10;
-	this.maxHealth = 10;
+	this.maxHealth = function(){return Math.ceil(Math.pow(1.2, this.level) * 10);};
 	this.target = null;
 	this.id = Tower.prototype.idGen++;
 	this.cooldown = 4;
 	this.kills = 0;
 	this.damage = 0;
-	this.team = 0;
-	this.radius = 10;
 }
+Tower.prototype = new Entity(); // Subclass
 
 Tower.prototype.serialize = function(){
 	var v = this;
@@ -72,6 +83,14 @@ Tower.prototype.update = function(dt){
 	this.onUpdate(dt);
 
 	return true;
+}
+
+Tower.prototype.onKill = function(e){
+	if(e.team != 0){
+		this.game.score += e.maxHealth();
+		this.game.credit += e.credit;
+	}
+	this.kills++;
 }
 
 Tower.prototype.receiveDamage = function(dmg){
@@ -167,11 +186,7 @@ Bullet.prototype.update = function(dt){
 		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < 10 * 10){
 			this.owner.damage++;
 			if(e.receiveDamage(1)){
-				if(e.team != 0){
-					this.game.score += e.maxHealth;
-					this.game.credit += e.credit;
-				}
-				this.owner.kills++;
+				this.owner.onKill(e);
 			}
 			return 0;
 		}
@@ -199,18 +214,18 @@ Bullet.prototype.onDelete = function(){
 
 /// \brief Class representing an enemy unit.
 function Enemy(game,x,y){
+	Entity.call(this,game,x,y);
 	this.game = game;
 	this.x = x;
 	this.y = y;
 	this.vx = 0;
 	this.vy = 0;
-	this.health = 10;
-	this.maxHealth = 10;
 	this.credit = Math.ceil(game.rng.next() * 5);
 	this.kills = 0;
 	this.damage = 0;
 	this.team = 1;
 }
+Enemy.prototype = new Entity(); // Subclass
 
 Enemy.prototype.update = function(dt){
 	this.vx += (game.width / 2 - this.x) * 0.005 + (this.game.rng.next() - 0.5) * 15;
