@@ -8,6 +8,8 @@ function Entity(game,x,y){
 	this.vy = 0;
 	this.health = 10;
 	this.maxHealth = function(){return 10;}
+	this.xp = 0;
+	this.level = 1;
 	this.team = 0;
 	this.radius = 10;
 }
@@ -34,7 +36,9 @@ Tower.prototype.serialize = function(){
 		x: v.x,
 		y: v.y,
 		angle: v.angle,
-		health: v.health
+		health: v.health,
+		level: v.level,
+		xp: v.xp
 	};
 }
 
@@ -43,6 +47,8 @@ Tower.prototype.deserialize = function(data){
 	this.kills = data.kills;
 	this.damage = data.damage;
 	this.health = data.health;
+	if("level" in data) this.level = data.level;
+	if("xp" in data) this.xp = data.xp;
 }
 
 Tower.prototype.update = function(dt){
@@ -85,12 +91,21 @@ Tower.prototype.update = function(dt){
 	return true;
 }
 
+Tower.prototype.maxXp = function(){
+	return Math.ceil(Math.pow(1.5, this.level) * 100);
+}
+
 Tower.prototype.onKill = function(e){
 	if(e.team != 0){
 		this.game.score += e.maxHealth();
 		this.game.credit += e.credit;
 	}
 	this.kills++;
+	this.xp += e.maxHealth();
+	while(this.maxXp() <= this.xp){
+		this.level++;
+		this.health = this.maxHealth(); // Fully recover
+	}
 }
 
 Tower.prototype.receiveDamage = function(dmg){
