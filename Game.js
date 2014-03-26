@@ -467,6 +467,10 @@ Game.prototype.addBullet = function(b){
 	this.addBulletEvent(b);
 }
 
+Game.prototype.isGameOver = function(){
+	return this.towers.length == 0;
+}
+
 Game.prototype.hitTest = function(target){
 	for(var i = 0; i < this.towers.length; i++){
 		var t = this.towers[i];

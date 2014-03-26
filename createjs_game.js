@@ -195,6 +195,15 @@ function init(){
 	pauseText.y = (height - pauseText.getBounds().height) / 2;
 	stage.addChild(pauseText);
 
+	var gameOverText = new createjs.Text("GAME OVER", "Bold 40px Arial", "#ff3f7f");
+	gameOverText.visible = false;
+	gameOverText.x = (width - gameOverText.getBounds().width) / 2;
+	gameOverText.y = (height - gameOverText.getBounds().height) / 2;
+	gameOverText.on("tick", function(evt){
+		gameOverText.visible = game.isGameOver();
+	});
+	stage.addChild(gameOverText);
+
 	var overlay = new createjs.Container();
 
 	var statusPanel = new createjs.Container();
@@ -260,6 +269,8 @@ function init(){
 		buyButtonImage.alpha = game.credit < Tower.prototype.cost() ? 0.25 : 1.;
 	});
 	buyButton.on("pressmove", function(evt){
+		if(game.isGameOver())
+			return;
 		if(boughtTower == null){
 			var cost = Tower.prototype.cost();
 			if(game.credit < cost)
