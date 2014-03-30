@@ -288,8 +288,10 @@ function init(){
 	});
 	buyButton.on("pressup", function(evt){
 		game.moving = false;
-		game.separateTower(boughtTower);
-		boughtTower = null;
+		if(boughtTower != null){
+			game.separateTower(boughtTower);
+			boughtTower = null;
+		}
 		endHit();
 	});
 	buyButton.on("mouseover", function(evt){
