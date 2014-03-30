@@ -72,7 +72,7 @@ function init(){
 
 		graph.addChild(shape);
 		graph.addChild(text);
-		graph.addChild(tip);
+		overlayTip.addChild(tip);
 
 		// Bind the hit shape indicator to the Tower object.
 		t.hitShape = new createjs.Shape();
@@ -83,7 +83,11 @@ function init(){
 		towerContainer.addChild(graph);
 
 		graph.addEventListener("mouseover", function(event){
-			tip.visible = true;
+			// If we're buying a Tower, do not show tip on it
+			if(boughtTower == null)
+				tip.visible = true;
+			tip.x = graph.x;
+			tip.y = graph.y;
 			activeShape.visible = true;
 		});
 		graph.addEventListener("mouseout", function(event){
@@ -92,8 +96,8 @@ function init(){
 		});
 		graph.on("pressmove", function(evt){
 			game.moving = true;
-			t.x = graph.x = evt.stageX;
-			t.y = graph.y = evt.stageY;
+			t.x = tip.x = graph.x = evt.stageX;
+			t.y = tip.y = graph.y = evt.stageY;
 			beginHit(t);
 		});
 		graph.on("pressup", function(evt){
@@ -131,6 +135,7 @@ function init(){
 		}
 		t.onDelete = function(){
 			towerContainer.removeChild(graph);
+			overlayTip.removeChild(tip);
 		}
 	}
 	game.addEnemyEvent = function(e){
@@ -160,23 +165,23 @@ function init(){
 				// Make the effect disappear when it finishes playing
 				sprite.addEventListener("animationend", function(event){
 					event.target.stop();
-					stage.removeChild(event.target);
+					effectContainer.removeChild(event.target);
 				});
-				stage.addChild(sprite);
+				effectContainer.addChild(sprite);
 			}
 		}
 	}
 	game.addBulletEvent = function(b){
 		var shape = new createjs.Shape();
 		shape.graphics.beginFill(b.team == 0 ? "#ff0000" : "#ffff00").drawRect(-5, -2, 5, 2);
-		stage.addChild(shape);
+		effectContainer.addChild(shape);
 		b.onUpdate = function(dt){
 			shape.x = this.x;
 			shape.y = this.y;
 			shape.rotation = this.angle  * 360 / 2 / Math.PI;
 		}
 		b.onDelete = function(){
-			stage.removeChild(shape);
+			effectContainer.removeChild(shape);
 			var sprite = hitSpriteTemplate.clone();
 			sprite.x = this.x;
 			sprite.y = this.y;
@@ -185,9 +190,9 @@ function init(){
 			// Make the effect disappear when it finishes playing
 			sprite.addEventListener("animationend", function(event){
 				event.target.stop();
-				stage.removeChild(event.target);
+				effectContainer.removeChild(event.target);
 			});
-			stage.addChild(sprite);
+			effectContainer.addChild(sprite);
 		}
 	}
 	stage = new createjs.Stage("scratch");
@@ -198,6 +203,9 @@ function init(){
 
 	enemyContainer = new createjs.Container();
 	stage.addChild(enemyContainer);
+
+	var effectContainer = new createjs.Container();
+	stage.addChild(effectContainer);
 
 	pauseText = new createjs.Text("PAUSED", "Bold 40px Arial", "#ff7f7f");
 	pauseText.visible = false;
