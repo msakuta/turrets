@@ -1,4 +1,18 @@
 
+// Remember global object reference for deserialization.
+// The variable "window" should be the same thing in a browser,
+// but we could write this script independent of running environment.
+var global = this;
+
+// Utility 2D matrix functions
+function matvp(m,v){ // Matrix Vector product
+	return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]];
+}
+function mattvp(m,v){ // Matrix Transpose Vector product
+	return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]];
+}
+
+
 // Base class definition of in-game objects.
 function Entity(game,x,y){
 	this.game = game;
@@ -28,9 +42,14 @@ function Tower(game,x,y){
 }
 Tower.prototype = new Entity(); // Subclass
 
+Tower.prototype.dispName = function(){
+	return "Machine Gun";
+}
+
 Tower.prototype.serialize = function(){
 	var v = this;
 	return {
+		className: "Tower",
 		kills: v.kills,
 		damage: v.damage,
 		x: v.x,
@@ -68,21 +87,7 @@ Tower.prototype.update = function(dt){
 
 	if(this.cooldown <= 0 && this.target != null){
 		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-		var spd = 100;
-		var mat = [Math.cos(this.angle), Math.sin(this.angle), -Math.sin(this.angle), Math.cos(this.angle)];
-		function matvp(m,v){
-			return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]];
-		}
-		function mattvp(m,v){
-			return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]];
-		}
-		for(var i = -1; i <= 1; i += 2){
-			var ofs = mattvp(mat, [0, i * 5]);
-			var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this);
-			b.damage = Math.pow(1.2, this.level);
-			this.game.addBullet(b);
-		}
-		this.cooldown = 4;
+		this.shoot();
 	}
 
 	if(0 < this.cooldown)
@@ -91,6 +96,18 @@ Tower.prototype.update = function(dt){
 	this.onUpdate(dt);
 
 	return true;
+}
+
+Tower.prototype.shoot = function(){
+	var spd = 100;
+	var mat = [Math.cos(this.angle), Math.sin(this.angle), -Math.sin(this.angle), Math.cos(this.angle)];
+	for(var i = -1; i <= 1; i += 2){
+		var ofs = mattvp(mat, [0, i * 5]);
+		var b = new Bullet(this.game, this.x + ofs[0], this.y + ofs[1], spd * mat[0], spd * mat[1], this.angle, this);
+		b.damage = Math.pow(1.2, this.level);
+		this.game.addBullet(b);
+	}
+	this.cooldown = 4;
 }
 
 Tower.prototype.maxXp = function(){
@@ -181,6 +198,41 @@ Tower.prototype.onUpdate = function(dt){
 
 Tower.prototype.onDelete = function(){
 }
+
+
+/// Tower with a shotgun, which shoots spreading bullets
+function ShotgunTower(game,x,y){
+	Tower.call(this,game,x,y);
+}
+ShotgunTower.prototype = new Tower(); // Subclass
+
+ShotgunTower.prototype.dispName = function(){
+	return "Shotgun";
+}
+
+ShotgunTower.prototype.cost = function(){
+	return Math.ceil(Math.pow(1.5, game.towers.length) * 150);
+}
+
+ShotgunTower.prototype.serialize = function(){
+	var ret = Tower.prototype.serialize.call(this);
+	ret.className = "ShotgunTower";
+	return ret;
+}
+
+ShotgunTower.prototype.shoot = function(){
+	var spd = 100;
+	for(var i = -5; i <= 5; i++){
+		var angle = this.angle + i * Math.PI / 40.;
+		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+		var ofs = mattvp(mat, [0, i * 5]);
+		var b = new Bullet(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this);
+		b.damage = Math.pow(1.2, this.level);
+		this.game.addBullet(b);
+	}
+	this.cooldown = 20;
+}
+
 
 
 function Bullet(game,x,y,vx,vy,angle,owner){
@@ -346,11 +398,14 @@ Game.prototype.deserialize = function(stream){
 		for(var i = 0; i < towers.length; i++){
 			var tow = towers[i];
 			if(tow){
-				var newTower = new Tower(this, tow.x, tow.y);
-				newTower.id = i;
-				newTower.deserialize(tow);
-				this.towers.push(newTower);
-				this.addTowerEvent(newTower);
+				if(tow.className in global){
+					var classType = global[tow.className];
+					var newTower = new classType(this, tow.x, tow.y);
+					newTower.id = i;
+					newTower.deserialize(tow);
+					this.towers.push(newTower);
+					this.addTowerEvent(newTower);
+				}
 			}
 		}
 	}
