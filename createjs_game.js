@@ -134,15 +134,18 @@ function init(){
 		}
 	}
 	game.addEnemyEvent = function(e){
-		var shape = new createjs.Shape();
-		shape.graphics.beginFill("#ff0000").beginStroke("#00ffff").drawCircle(0, 0, e.radius);
-		enemyContainer.addChild(shape);
+		var graph = new createjs.Container();
+		var bm = new createjs.Bitmap(e instanceof Enemy2 ? "assets/boss.png" : "assets/enemy.png");
+		bm.x = -(e instanceof Enemy2 ? 32 : 16) / 2;
+		bm.y = -(e instanceof Enemy2 ? 32 : 16) / 2;
+		graph.addChild(bm);
+		enemyContainer.addChild(graph);
 		e.onUpdate = function(dt){
-			shape.x = this.x;
-			shape.y = this.y;
+			graph.x = this.x;
+			graph.y = this.y;
 		}
 		e.onDelete = function(){
-			enemyContainer.removeChild(shape);
+			enemyContainer.removeChild(graph);
 			var effectCount = e instanceof Enemy2 ? 5 : 1;
 			for(var i = 0; i < effectCount; i++){
 				var sprite = explosionSpriteTemplate.clone();
