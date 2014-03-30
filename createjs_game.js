@@ -250,29 +250,24 @@ function init(){
 	overlay.addChild(statusPanel);
 
 	/// Class for showing buy button tip
-	function BuyTip(classType){
+	function TextTip(texts,width){
 		createjs.Container.call(this);
 		var buyTipFrame = new createjs.Shape();
-		buyTipFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 100, 35);
+		buyTipFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, width == undefined ? 100 : width, texts.length * 10 + 5);
 		this.addChild(buyTipFrame);
-		var buyTipText = new createjs.Text(classType.prototype.dispName(), "10px Helvetica", "#ffffff");
-		buyTipText.y = 0;
-		buyTipText.x = 5;
-		this.addChild(buyTipText);
-		var buyTipText2 = new createjs.Text("Cost: " + Tower.prototype.cost(), "10px Helvetica", "#ffffff");
-		buyTipText2.y = 10;
-		buyTipText2.x = 5;
-		buyTipText2.on("tick", function(evt){
-			buyTipText2.text = "Cost: " + classType.prototype.cost();
-		});
-		this.addChild(buyTipText2);
-		var buyTipText3 = new createjs.Text("Drag & Drop to buy", "10px Helvetica", "#ffff00");
-		buyTipText3.y = 20;
-		buyTipText3.x = 5;
-		this.addChild(buyTipText3);
+		this.texts = [];
+		for(var i = 0; i < texts.length; i++){
+			var caption = typeof(texts[i]) == "string" ? texts[i] : texts[i].text;
+			var color = typeof(texts[i]) == "string" ? "#ffffff" : texts[i].color;
+			var text = new createjs.Text(caption, "10px Helvetica", color);
+			text.x = 5;
+			text.y = i * 10;
+			this.texts.push(text);
+			this.addChild(text);
+		}
 		this.visible = false;
 	}
-	BuyTip.prototype = new createjs.Container();
+	TextTip.prototype = new createjs.Container();
 
 	/// Customized container for buy buttons
 	function BuyButton(classType,imagePath){
@@ -287,7 +282,7 @@ function init(){
 		this.buttonImage.hitArea = buyButtonFrame;
 		this.addChild(this.buttonImage);
 
-		var buyTip = new BuyTip(classType);
+		var buyTip = new TextTip([classType.prototype.dispName(), "", {text: "Drag & Drop to buy", color: "#ffff00"}]);
 		overlayTip.addChild(buyTip);
 
 		this.on("pressmove", function(evt){
@@ -319,10 +314,13 @@ function init(){
 		this.on("mouseover", function(evt){
 			buyTip.visible = true;
 			buyTip.x = this.x - 100;
-			buyTip.y = this.y + 20;
+			buyTip.y = this.y;
 		});
 		this.on("mouseout", function(evt){
 			buyTip.visible = false;
+		});
+		this.on("tick", function(evt){
+			buyTip.texts[1].text = "Cost: " + classType.prototype.cost();
 		});
 	}
 	BuyButton.prototype = new createjs.Container();
@@ -343,14 +341,10 @@ function init(){
 	});
 	overlay.addChild(buyShotgunButton);
 
-	var buyShotgunTip = new BuyTip(ShotgunTower);
-	buyShotgunTip.x = width - 100;
-	buyShotgunTip.y = 65;
-	overlay.addChild(buyShotgunTip);
-
 	var deleteButton = new createjs.Container();
 	deleteShape = new createjs.Shape();
 	deleteShape.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 30, 30);
+	deleteShape.alpha = 0.5;
 	deleteButton.addChild(deleteShape);
 	var deleteButtonImage = new createjs.Bitmap("assets/trashcan.png");
 	deleteButtonImage.x = 5;
@@ -360,6 +354,16 @@ function init(){
 	deleteButton.x = width - 40;
 	deleteButton.y = height - 40;
 	overlay.addChild(deleteButton);
+	deleteButton.on("mouseover", function(evt){
+		deleteButtonTip.visible = true;
+	});
+	deleteButton.on("mouseout", function(evt){
+		deleteButtonTip.visible = false;
+	});
+	var deleteButtonTip = new TextTip([{text: "Drag & Drop a tower", color: "#ffff00"}, {text: "here to delete", color: "#ffff00"}], 110);
+	deleteButtonTip.x = deleteButton.x - 110;
+	deleteButtonTip.y = deleteButton.y;
+	overlayTip.addChild(deleteButtonTip);
 
 	stage.addChild(overlay);
 
