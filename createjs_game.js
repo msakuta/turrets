@@ -135,7 +135,7 @@ function init(){
 	}
 	game.addEnemyEvent = function(e){
 		var shape = new createjs.Shape();
-		shape.graphics.beginFill("#ff0000").beginStroke("#00ffff").drawCircle(0, 0, 7.5);
+		shape.graphics.beginFill("#ff0000").beginStroke("#00ffff").drawCircle(0, 0, e.radius);
 		enemyContainer.addChild(shape);
 		e.onUpdate = function(dt){
 			shape.x = this.x;
@@ -143,17 +143,24 @@ function init(){
 		}
 		e.onDelete = function(){
 			enemyContainer.removeChild(shape);
-			var sprite = explosionSpriteTemplate.clone();
-			sprite.x = this.x;
-			sprite.y = this.y;
-			// Start playing explosion animation
-			sprite.gotoAndPlay("explosion");
-			// Make the effect disappear when it finishes playing
-			sprite.addEventListener("animationend", function(event){
-				event.target.stop();
-				stage.removeChild(event.target);
-			});
-			stage.addChild(sprite);
+			var effectCount = e instanceof Enemy2 ? 5 : 1;
+			for(var i = 0; i < effectCount; i++){
+				var sprite = explosionSpriteTemplate.clone();
+				sprite.x = this.x;
+				sprite.y = this.y;
+				if(1 < effectCount){
+					sprite.x += (game.rng.next() + game.rng.next() - 0.5) * e.radius;
+					sprite.y += (game.rng.next() + game.rng.next() - 0.5) * e.radius;
+				}
+				// Start playing explosion animation
+				sprite.gotoAndPlay("explosion");
+				// Make the effect disappear when it finishes playing
+				sprite.addEventListener("animationend", function(event){
+					event.target.stop();
+					stage.removeChild(event.target);
+				});
+				stage.addChild(sprite);
+			}
 		}
 	}
 	game.addBulletEvent = function(b){
@@ -256,6 +263,7 @@ function init(){
 	}
 	BuyTip.prototype = new createjs.Container();
 
+	/// Customized container for buy buttons
 	function BuyButton(classType,imagePath){
 		createjs.Container.call(this);
 		var buyButtonFrame = new createjs.Shape();

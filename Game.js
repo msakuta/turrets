@@ -270,7 +270,7 @@ Bullet.prototype.update = function(dt){
 	var enemies = this.team == 0 ? this.game.enemies : this.game.towers;
 	for(var i = 0; i < enemies.length; i++){
 		var e = enemies[i];
-		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < 10 * 10){
+		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < e.radius * e.radius){
 			this.owner.damage += this.damage;
 			if(e.receiveDamage(this.damage)){
 				this.owner.onKill(e);
@@ -307,10 +307,12 @@ function Enemy(game,x,y){
 	this.y = y;
 	this.vx = 0;
 	this.vy = 0;
+	this.radius = 7.5;
 	this.credit = Math.ceil(game.rng.next() * 5);
 	this.kills = 0;
 	this.damage = 0;
 	this.team = 1;
+	this.shootFrequency = function(){return 0.02;};
 }
 inherit(Enemy, Entity); // Subclass
 
@@ -321,7 +323,7 @@ Enemy.prototype.update = function(dt){
 	this.vy *= 0.8;
 	this.x += this.vx * dt;
 	this.y += this.vy * dt;
-	if(this.game.rng.next() < 0.01){
+	if(this.game.rng.next() < this.shootFrequency()){
 		var spd = 100.;
 		var angle = this.game.rng.next() * Math.PI * 2.;
 		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
@@ -372,6 +374,17 @@ Enemy.prototype.onUpdate = function(dt){
 Enemy.prototype.onDelete = function(){
 	// Default does nothing
 }
+
+/// \brief Tier 2 enemy with higher health and credit
+function Enemy2(game,x,y){
+	Enemy.apply(this, arguments);
+	this.maxHealth = function(){return 150;}
+	this.health = this.maxHealth();
+	this.radius = 15;
+	this.credit = Math.ceil(game.rng.next() * 150);
+	this.shootFrequency = function(){return 0.2;};
+}
+inherit(Enemy2, Enemy);
 
 
 
@@ -453,27 +466,58 @@ Game.prototype.update = function(dt, autoSaveHandler){
 			i++;
 	}
 
-	if(0 < this.towers.length && this.enemies.length < this.score / 100 + 20){
-		var edge = this.rng.nexti() % 4;
-		if(edge == 0){
-			var e = new Enemy(this, 0, this.height * this.rng.next());
-			this.enemies.push(e);
-			this.addEnemyEvent(e);
-		}
-		else if(edge == 1){
-			var e = new Enemy(this, this.width, this.height * this.rng.next());
-			this.enemies.push(e);
-			this.addEnemyEvent(e);
-		}
-		else if(edge == 2){
-			var e = new Enemy(this, this.width * this.rng.next(), 0);
-			this.enemies.push(e);
-			this.addEnemyEvent(e);
-		}
-		else if(edge == 3){
-			var e = new Enemy(this, this.width * this.rng.next(), this.height);
-			this.enemies.push(e);
-			this.addEnemyEvent(e);
+	var enemyCounts = [0, 0];
+	for(var i = 0; i < this.enemies.length; i++){
+		var e = this.enemies[i];
+		if(e instanceof Enemy2)
+			enemyCounts[1]++;
+		else if(e instanceof Enemy)
+			enemyCounts[0]++;
+	}
+
+	/// A pseudo-random number generator distributed in Poisson distribution.
+	/// It uses Knuth's algorithm, which is not optimal when lambda gets
+	/// so high.  We probably should use an approximation.
+	function poissonRandom(rng,lambda){
+		var L = Math.exp(-lambda);
+		var k = 0;
+		var p = 1;
+		do{
+			k++;
+			p *= rng.next();
+		}while(L < p);
+		return k - 1;
+	}
+
+	if(0 != this.towers.length){
+		for(var i = 0; i < 2; i++){
+			var offset = 20 - i * 20;
+			var freq = i * 10000000 + 100000;
+			var genCount = poissonRandom(this.rng, (this.score + 10000) / freq);
+			for(var j = 0; j < genCount; j++){
+				var edge = this.rng.nexti() % 4;
+				var x = 0;
+				var y = 0;
+				if(edge == 0){
+					x = 0;
+					y = this.height * this.rng.next();
+				}
+				else if(edge == 1){
+					x = this.width;
+					y = this.height * this.rng.next();
+				}
+				else if(edge == 2){
+					x = this.width * this.rng.next();
+					y = 0;
+				}
+				else if(edge == 3){
+					x = this.width * this.rng.next();
+					y = this.height;
+				}
+				var e = i ? new Enemy2(this, x, y) : new Enemy(this, x, y);
+				this.enemies.push(e);
+				this.addEnemyEvent(e);
+			}
 		}
 	}
 
