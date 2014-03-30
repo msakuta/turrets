@@ -12,6 +12,23 @@ function mattvp(m,v){ // Matrix Transpose Vector product
 	return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]];
 }
 
+/// Custom inheritance function that prevents the super class's constructor
+/// from being called on inehritance.
+/// Also assigns constructor property of the subclass properly.
+function inherit(subclass,base){
+	// If the browser or ECMAScript supports Object.create, use it
+	// (but don't remember to redirect constructor pointer to subclass)
+	if(Object.create){
+		subclass.prototype = Object.create(base.prototype);
+	}
+	else{
+		var sub = function(){};
+		sub.prototype = base.prototype;
+		subclass.prototype = new sub;
+	}
+	subclass.prototype.constructor = subclass;
+}
+
 
 // Base class definition of in-game objects.
 function Entity(game,x,y){
@@ -40,7 +57,7 @@ function Tower(game,x,y){
 	this.kills = 0;
 	this.damage = 0;
 }
-Tower.prototype = new Entity(); // Subclass
+inherit(Tower, Entity); // Subclass
 
 Tower.prototype.dispName = function(){
 	return "Machine Gun";
@@ -204,7 +221,7 @@ Tower.prototype.onDelete = function(){
 function ShotgunTower(game,x,y){
 	Tower.call(this,game,x,y);
 }
-ShotgunTower.prototype = new Tower(); // Subclass
+inherit(ShotgunTower, Tower); // Subclass
 
 ShotgunTower.prototype.dispName = function(){
 	return "Shotgun";
@@ -295,7 +312,7 @@ function Enemy(game,x,y){
 	this.damage = 0;
 	this.team = 1;
 }
-Enemy.prototype = new Entity(); // Subclass
+inherit(Enemy, Entity); // Subclass
 
 Enemy.prototype.update = function(dt){
 	this.vx += (game.width / 2 - this.x) * 0.005 + (this.game.rng.next() - 0.5) * 15;
