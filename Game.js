@@ -243,7 +243,8 @@ ShotgunTower.prototype.serialize = function(){
 
 ShotgunTower.prototype.shoot = function(){
 	var spd = 100;
-	for(var i = -5; i <= 5; i++){
+	var bullets = Math.floor(5 + this.level / 2);
+	for(var i = -bullets; i <= bullets; i++){
 		var angle = this.angle + i * Math.PI / 40.;
 		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
 		var ofs = mattvp(mat, [0, i * 5]);
