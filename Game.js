@@ -137,7 +137,11 @@ Tower.prototype.onKill = function(e){
 		this.game.credit += e.credit;
 	}
 	this.kills++;
-	this.xp += e.maxHealth();
+	this.gainXp(e.maxHealth());
+}
+
+Tower.prototype.gainXp = function(xp){
+	this.xp += xp;
 	while(this.maxXp() <= this.xp){
 		this.level++;
 		this.health = this.maxHealth(); // Fully recover
@@ -251,6 +255,65 @@ ShotgunTower.prototype.shoot = function(){
 }
 
 
+/// Tower with capability to heal nearby towers
+function HealerTower(game,x,y){
+	Tower.call(this,game,x,y);
+}
+inherit(HealerTower, Tower); // Subclass
+
+HealerTower.prototype.dispName = function(){
+	return "Healer";
+}
+
+HealerTower.prototype.cost = function(){
+	return Math.ceil(Math.pow(1.5, game.towers.length) * 200);
+}
+
+HealerTower.prototype.serialize = function(){
+	var ret = Tower.prototype.serialize.call(this);
+	ret.className = "HealerTower";
+	return ret;
+}
+
+HealerTower.prototype.shoot = function(){
+	if(this.target != null && this.target.health < this.target.maxHealth()){
+		this.target.health++;
+		this.damage++;
+		this.gainXp(1);
+		this.cooldown = Math.ceil(16 / (10 + this.level));
+	}
+}
+
+HealerTower.prototype.update = function(dt){
+	var towers = this.game.towers;
+	var damaged = null;
+	var heaviestDamage = 0;
+	// Find the most damaged tower in the game
+	for(var i = 0; i < towers.length; i++){
+		var t = towers[i];
+		// Do not allow healing itself
+		if(t == this)
+			continue;
+		var damage = t.maxHealth() - t.health;
+		if(heaviestDamage < damage){
+			heaviestDamage = damage;
+			damaged = t;
+		}
+	}
+	this.target = damaged;
+
+	if(this.cooldown <= 0 && this.target != null){
+		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+		this.shoot();
+	}
+
+	if(0 < this.cooldown)
+		this.cooldown--;
+
+	this.onUpdate(dt);
+
+	return true;
+}
 
 function Bullet(game,x,y,vx,vy,angle,owner){
 	this.game = game;

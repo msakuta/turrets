@@ -32,7 +32,8 @@ function init(){
 		shape.addChild(activeShape);
 		var hitShape = new createjs.Shape();
 		hitShape.graphics.beginFill("#ffffff").drawCircle(10, 10, 10);
-		var bm = new createjs.Bitmap(t instanceof ShotgunTower ? "assets/shotgun.png" : "assets/turret.png");
+		var bm = new createjs.Bitmap(t instanceof ShotgunTower ? "assets/shotgun.png"
+			: t instanceof HealerTower ? "assets/healer.png" : "assets/turret.png");
 		bm.x = -10;
 		bm.y = -10;
 		bm.hitArea = hitShape;
@@ -340,6 +341,14 @@ function init(){
 		buyShotgunButton.buttonImage.alpha = game.credit < ShotgunTower.prototype.cost() ? 0.25 : 1.;
 	});
 	overlay.addChild(buyShotgunButton);
+
+	var buyHealerButton = new BuyButton(HealerTower, "assets/healer.png");
+	buyHealerButton.x = width - 40;
+	buyHealerButton.y = 70;
+	buyHealerButton.on("tick", function(evt){
+		buyHealerButton.buttonImage.alpha = game.credit < HealerTower.prototype.cost() ? 0.25 : 1.;
+	});
+	overlay.addChild(buyHealerButton);
 
 	var deleteButton = new createjs.Container();
 	deleteShape = new createjs.Shape();
