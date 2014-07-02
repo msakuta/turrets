@@ -46,32 +46,20 @@ function init(){
 		healthBar.currentValue = t.health;
 		var tip = new createjs.Container();
 		var tipshape = new createjs.Shape();
-		tipshape.graphics.beginFill("#111").beginStroke("#fff").drawRect(-40, 15, 80, 50).endStroke();
+		tipshape.graphics.beginFill("#111").beginStroke("#fff").drawRect(-40, 15, 90, 60).endStroke();
 		tip.visible = false;
-		var tiptext = new createjs.Text("kills: 0", "10px Helvetica", "#ffffff");
-		tiptext.x = -38;
-		tiptext.y = 13;
-		var tiptext2 = new createjs.Text("damage: 0", "10px Helvetica", "#ffffff");
-		tiptext2.x = -38;
-		tiptext2.y = 23;
-		var tiptext3 = new createjs.Text("", "10px Helvetica", "#ffffff");
-		tiptext3.x = -38;
-		tiptext3.y = 33;
-		var tiptext4 = new createjs.Text("", "10px Helvetica", "#ffffff");
-		tiptext4.x = -38;
-		tiptext4.y = 43;
-		var tiptext5 = new createjs.Text("", "10px Helvetica", "#ffffff");
-		tiptext5.x = -38;
-		tiptext5.y = 53;
 		var tipRange = new createjs.Shape();
 		tip.addChild(tipRange);
 		tip.addChild(healthBar);
 		tip.addChild(tipshape);
-		tip.addChild(tiptext);
-		tip.addChild(tiptext2);
-		tip.addChild(tiptext3);
-		tip.addChild(tiptext4);
-		tip.addChild(tiptext5);
+		var tiptexts = [];
+		for(var i = 0; i < 6; i++){
+			var tiptext = new createjs.Text("kills: 0", "10px Helvetica", "#ffffff");
+			tiptext.x = -38;
+			tiptext.y = 13 + i * 10;
+			tiptexts.push(tiptext);
+			tip.addChild(tiptext);
+		}
 
 		graph.addChild(shape);
 		graph.addChild(text);
@@ -130,11 +118,12 @@ function init(){
 			graph.x = this.x;
 			graph.y = this.y;
 			if(tip.visible){
-				tiptext.text = "Kills: " + this.kills;
-				tiptext2.text = "Damage: " + Math.round(this.damage);
-				tiptext3.text = "Health: " + this.health + "/" + this.maxHealth();
-				tiptext4.text = "Level: " + this.level;
-				tiptext5.text = "XP: " + this.xp + "/" + this.maxXp();
+				tiptexts[0].text = "Kills: " + this.kills;
+				tiptexts[1].text = "Damage: " + Math.round(this.damage);
+				tiptexts[2].text = "Health: " + this.health + "/" + this.maxHealth();
+				tiptexts[3].text = "Level: " + this.level;
+				tiptexts[4].text = "XP: " + this.xp + "/" + this.maxXp();
+				tiptexts[5].text = "Range: " + (this.getRange() ? this.getRange() : "none");
 				if(healthBar.currentValue != t.health){
 					healthBar.currentValue = t.health;
 					healthBar.removeAllChildren();
