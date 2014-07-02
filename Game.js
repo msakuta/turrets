@@ -280,6 +280,7 @@ HealerTower.prototype.shoot = function(){
 	if(this.target != null && this.target.health < this.target.maxHealth()){
 		this.target.health++;
 		this.damage++;
+		this.game.onHeal(this.target, this);
 		this.gainXp(1);
 		this.cooldown = Math.ceil(16 / (10 + this.level));
 	}
@@ -741,4 +742,7 @@ Game.prototype.addEnemyEvent = function(e){
 }
 
 Game.prototype.addBulletEvent = function(b){
+}
+
+Game.prototype.onHeal = function(target,healer){
 }

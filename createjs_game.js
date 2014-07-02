@@ -196,6 +196,53 @@ function init(){
 			effectContainer.addChild(sprite);
 		}
 	}
+
+	// Heal effects on both healer and healee.
+	game.onHeal = function(e, healer){
+		// The effect on the healed tower
+		var sprite = new createjs.Shape();
+		sprite.graphics.beginFill("#00ff77")
+			.mt(-10, -3).lt(-3, -3).lt(-3, -10).lt(3, -10).lt(3, -3)
+			.lt(10, -3).lt(10, 3).lt(3, 3).lt(3, 10).lt(-3, 10).lt(-3, 3).lt(-10, 3).ef();
+		sprite.alpha = 0.5;
+		sprite.x = e.x;
+		sprite.y = e.y;
+		sprite.on("tick", function(e){
+			sprite.alpha -= 0.05;
+			sprite.y -= 1;
+			if(sprite.alpha <= 0)
+				effectContainer.removeChild(sprite);
+		});
+		effectContainer.addChild(sprite);
+
+		// The effect on the healer tower
+		var healerEffect = new createjs.Shape();
+		healerEffect.graphics.beginFill("#00ff77").drawCircle(0, 0, 5);
+		healerEffect.x = healer.x;
+		healerEffect.y = healer.y;
+		healerEffect.alpha = 0.5;
+		healerEffect.on("tick", function(e){
+			healerEffect.alpha -= 0.05;
+			if(healerEffect.alpha <= 0)
+				effectContainer.removeChild(healerEffect);
+			else{
+				// Gradually scale up
+				healerEffect.scaleX += 0.2;
+				healerEffect.scaleY += 0.2;
+			}
+		});
+		effectContainer.addChild(healerEffect);
+
+		var healBeam = new createjs.Shape();
+		healBeam.graphics.beginStroke("#00ff77").setStrokeStyle(2).mt(healer.x, healer.y).lt(e.x, e.y);
+		healBeam.on("tick", function(e){
+			healBeam.alpha -= 0.05;
+			if(healBeam.alpha <= 0)
+				effectContainer.removeChild(healBeam);
+		});
+		effectContainer.addChild(healBeam);
+	}
+
 	stage = new createjs.Stage("scratch");
 	stage.enableMouseOver();
 
