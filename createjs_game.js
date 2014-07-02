@@ -152,9 +152,13 @@ function init(){
 			overlayTip.removeChild(tip);
 		}
 	}
+
+	var enemy2Bitmap = new createjs.Bitmap("assets/boss.png");
+	var enemyBitmap = new createjs.Bitmap("assets/enemy.png");
+
 	game.addEnemyEvent = function(e){
 		var graph = new createjs.Container();
-		var bm = new createjs.Bitmap(e instanceof Enemy2 ? "assets/boss.png" : "assets/enemy.png");
+		var bm = (e instanceof Enemy2 ? enemy2Bitmap : enemyBitmap).clone();
 		bm.x = -(e instanceof Enemy2 ? 32 : 16) / 2;
 		bm.y = -(e instanceof Enemy2 ? 32 : 16) / 2;
 		graph.addChild(bm);
