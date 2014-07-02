@@ -214,6 +214,10 @@ Tower.prototype.measureDistance = function(other){
 	return Math.sqrt((this.x - other.x) * (this.x - other.x) + (this.y - other.y) * (this.y - other.y));
 }
 
+Tower.prototype.getRange = function(){
+	return 0; // 0 means infinite range
+}
+
 Tower.prototype.onUpdate = function(dt){
 }
 
@@ -294,7 +298,7 @@ HealerTower.prototype.update = function(dt){
 	for(var i = 0; i < towers.length; i++){
 		var t = towers[i];
 		// Do not allow healing itself
-		if(t == this)
+		if(t == this || this.getRange() < t.measureDistance(this))
 			continue;
 		var damage = t.maxHealth() - t.health;
 		if(heaviestDamage < damage){
@@ -315,6 +319,10 @@ HealerTower.prototype.update = function(dt){
 	this.onUpdate(dt);
 
 	return true;
+}
+
+HealerTower.prototype.getRange = function(){
+	return Math.ceil((this.level + 10) * 10);
 }
 
 function Bullet(game,x,y,vx,vy,angle,owner){

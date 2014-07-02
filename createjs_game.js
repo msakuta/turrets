@@ -63,6 +63,8 @@ function init(){
 		var tiptext5 = new createjs.Text("", "10px Helvetica", "#ffffff");
 		tiptext5.x = -38;
 		tiptext5.y = 53;
+		var tipRange = new createjs.Shape();
+		tip.addChild(tipRange);
 		tip.addChild(healthBar);
 		tip.addChild(tipshape);
 		tip.addChild(tiptext);
@@ -89,6 +91,17 @@ function init(){
 				tip.visible = true;
 			tip.x = graph.x;
 			tip.y = graph.y;
+
+			// Show range circle.  It may change during the tower's lifetime, so we update it.
+			var range = t.getRange();
+			if(range == 0)
+				tipRange.visible = false;
+			else{
+				tipRange.visible = true;
+				tipRange.graphics.clear();
+				tipRange.graphics.beginStroke("#00ffff").drawCircle(0, 0, t.getRange());
+			}
+
 			activeShape.visible = true;
 		});
 		graph.addEventListener("mouseout", function(event){
