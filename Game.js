@@ -285,8 +285,8 @@ HealerTower.prototype.shoot = function(){
 		this.target.health++;
 		this.damage++;
 		this.game.onHeal(this.target, this);
-		this.gainXp(1);
-		this.cooldown = Math.ceil(16 / (10 + this.level));
+		this.gainXp(3); // Healer has less opprtunity to gain experience than offensive towers, so gain high exp on healing
+		this.cooldown = Math.ceil(4 + 320 / (10 + this.level));
 	}
 }
 
@@ -297,7 +297,7 @@ HealerTower.prototype.update = function(dt){
 	// Find the most damaged tower in the game
 	for(var i = 0; i < towers.length; i++){
 		var t = towers[i];
-		// Do not allow healing itself
+		// Do not allow healing itself and those out of range
 		if(t == this || this.getRange() < t.measureDistance(this))
 			continue;
 		var damage = t.maxHealth() - t.health;
@@ -322,7 +322,7 @@ HealerTower.prototype.update = function(dt){
 }
 
 HealerTower.prototype.getRange = function(){
-	return Math.ceil((this.level + 10) * 10);
+	return Math.ceil((this.level + 10) * 5);
 }
 
 function Bullet(game,x,y,vx,vy,angle,owner){
