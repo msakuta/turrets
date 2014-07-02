@@ -29,6 +29,30 @@ function inherit(subclass,base){
 	subclass.prototype.constructor = subclass;
 }
 
+/// Approach src to dst by delta, optionally wrapping around wrap
+function approach(src, dst, delta, wrap){
+	if(wrap)
+		src -= Math.floor(src / wrap) * wrap;
+	if(src < dst){
+		if(dst - src < delta)
+			return dst;
+		else if(wrap && wrap / 2 < dst - src){
+			var ret = src - delta - Math.floor((src - delta) / wrap) * wrap/*fmod(src - delta + wrap, wrap)*/;
+			return src < ret && ret < dst ? dst : ret;
+		}
+		return src + delta;
+	}
+	else{
+		if(src - dst < delta)
+			return dst;
+		else if(wrap && wrap / 2 < src - dst){
+			var ret = src + delta - Math.floor((src + delta) / wrap) * wrap/*fmod(src + delta, wrap)*/;
+			return ret < src && dst < ret ? dst : ret;
+		}
+		else return src - delta;
+	}
+}
+
 
 // Base class definition of in-game objects.
 function Entity(game,x,y){
@@ -103,8 +127,12 @@ Tower.prototype.update = function(dt){
 		this.target = nearest;
 
 	if(this.cooldown <= 0 && this.target != null){
-		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-		this.shoot();
+		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+		desiredAngle -= Math.floor(desiredAngle / (Math.PI * 2.)) * (Math.PI * 2.);
+		this.angle = approach(this.angle, desiredAngle, Math.PI / 10., Math.PI * 2.);
+		if(Math.abs(this.angle - desiredAngle) < Math.PI / 10.)
+//		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+			this.shoot();
 	}
 
 	if(0 < this.cooldown)
@@ -309,8 +337,10 @@ HealerTower.prototype.update = function(dt){
 	this.target = damaged;
 
 	if(this.cooldown <= 0 && this.target != null){
-		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-		this.shoot();
+		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+		this.angle = approach(this.angle, desiredAngle, Math.PI / 10., Math.PI * 2.);
+		if(Math.abs(this.angle - desiredAngle) < Math.PI / 10.)
+			this.shoot();
 	}
 
 	if(0 < this.cooldown)
