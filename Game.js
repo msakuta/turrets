@@ -62,6 +62,15 @@ function rapproach(src, dst, delta){
 	return approach(src + Math.PI, dst + Math.PI, delta, Math.PI * 2) - Math.PI;
 }
 
+/// Matrix Vector Product
+function matvp(m,v){
+	return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]];
+}
+
+/// Matrix Transpose Vector Product
+function mattvp(m,v){
+	return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]];
+}
 
 // Base class definition of in-game objects.
 function Entity(game,x,y){
@@ -238,7 +247,7 @@ Tower.prototype.cost = function(){
 	return Math.ceil(Math.pow(1.5, game.towers.length) * 100);
 }
 
-Tower.prototype.getPos = function(){
+Entity.prototype.getPos = function(){
 	return new Array(this.x, this.y);
 }
 
@@ -438,12 +447,6 @@ Enemy.prototype.update = function(dt){
 		var spd = 100.;
 		var angle = this.game.rng.next() * Math.PI * 2.;
 		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
-		function matvp(m,v){
-			return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]];
-		}
-		function mattvp(m,v){
-			return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]];
-		}
 		this.game.addBullet(new Bullet(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this));
 	}
 	this.onUpdate(dt);
@@ -498,6 +501,53 @@ function Enemy2(game,x,y){
 inherit(Enemy2, Enemy);
 
 
+/// \brief Tier 2 enemy with higher health and credit
+function Enemy3(game,x,y){
+	Enemy.apply(this, arguments);
+	this.maxHealth = function(){return 50;}
+	this.health = this.maxHealth();
+	this.radius = 10;
+	this.credit = Math.ceil(game.rng.next() * 150);
+	this.shootFrequency = function(){return 0.2;};
+	this.angle = 0;
+}
+inherit(Enemy3, Enemy);
+
+Enemy3.prototype.update = function(dt){
+
+	if(this.target === undefined && this.game.towers.length !== 0){
+		this.target = this.game.towers[this.game.rng.nexti() % this.game.towers.length];
+		var vec = this.target.getPos();
+//		var veclen = Math.sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
+//		vec[0] /= veclen;
+//		vec[1] /= veclen;
+		this.vx = vec[1] * 0.1;
+		this.vy = -vec[0] * 0.1;
+	}
+
+	if(this.target !== undefined){
+		this.vx += (this.target.x - this.x) * 0.1 * dt;
+		this.vy += (this.target.y - this.y) * 0.1 * dt;
+		this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), Math.PI * 0.1);
+	}
+	else{
+		this.vx += (-this.x) * 0.1 * dt;
+		this.vy += (-this.y) * 0.1 * dt;
+	}
+
+	this.x += this.vx * dt;
+	this.y += this.vy * dt;
+
+	if(this.game.rng.next() < this.shootFrequency()){
+		var spd = 100.;
+		var angle = this.angle + this.game.rng.next() * Math.PI * 0.2;
+		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+		this.game.addBullet(new Bullet(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this));
+	}
+	this.onUpdate(dt);
+	return true;
+}
+
 
 
 function Game(width, height){
@@ -521,6 +571,9 @@ function Game(width, height){
 }
 
 Game.prototype.global_time = 0;
+
+Game.prototype.enemyTypes = [Enemy, Enemy2, Enemy3];
+Game.prototype.enemyFreq = [100000, 10000000, 10000000];
 
 Game.prototype.init = function(){
 	if(typeof(Storage) !== "undefined"){
@@ -577,13 +630,15 @@ Game.prototype.update = function(dt, autoSaveHandler){
 			i++;
 	}
 
-	var enemyCounts = [0, 0];
+	var enemyCounts = [0, 0, 0];
 	for(var i = 0; i < this.enemies.length; i++){
 		var e = this.enemies[i];
-		if(e instanceof Enemy2)
-			enemyCounts[1]++;
-		else if(e instanceof Enemy)
-			enemyCounts[0]++;
+		for(var j = 0; j < this.enemyTypes.length; j++){
+			if(e instanceof this.enemyTypes[j]){
+				enemyCounts[j]++;
+				break;
+			}
+		}
 	}
 
 	/// A pseudo-random number generator distributed in Poisson distribution.
@@ -601,9 +656,9 @@ Game.prototype.update = function(dt, autoSaveHandler){
 	}
 
 	if(0 != this.towers.length){
-		for(var i = 0; i < 2; i++){
+		for(var i = 0; i < this.enemyTypes.length; i++){
 			var offset = 20 - i * 20;
-			var freq = i * 10000000 + 100000;
+			var freq = this.enemyFreq[i];
 			var genCount = poissonRandom(this.rng, (this.score + 10000) / freq);
 			for(var j = 0; j < genCount; j++){
 				var edge = this.rng.nexti() % 4;
@@ -625,7 +680,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 					x = this.width * this.rng.next();
 					y = this.height;
 				}
-				var e = i ? new Enemy2(this, x, y) : new Enemy(this, x, y);
+				var e = new this.enemyTypes[i](this, x, y);
 				this.enemies.push(e);
 				this.addEnemyEvent(e);
 			}

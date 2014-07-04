@@ -144,10 +144,11 @@ function init(){
 
 	var enemy2Bitmap = new createjs.Bitmap("assets/boss.png");
 	var enemyBitmap = new createjs.Bitmap("assets/enemy.png");
+	var enemy3Bitmap = new createjs.Bitmap("assets/enemy3.png");
 
 	game.addEnemyEvent = function(e){
 		var graph = new createjs.Container();
-		var bm = (e instanceof Enemy2 ? enemy2Bitmap : enemyBitmap).clone();
+		var bm = (e instanceof Enemy3 ? enemy3Bitmap : e instanceof Enemy2 ? enemy2Bitmap : enemyBitmap).clone();
 		bm.x = -(e instanceof Enemy2 ? 32 : 16) / 2;
 		bm.y = -(e instanceof Enemy2 ? 32 : 16) / 2;
 		graph.addChild(bm);
@@ -155,6 +156,7 @@ function init(){
 		e.onUpdate = function(dt){
 			graph.x = this.x;
 			graph.y = this.y;
+			graph.rotation = this.angle * 360 / 2 / Math.PI + 90;
 		}
 		e.onDelete = function(){
 			enemyContainer.removeChild(graph);
