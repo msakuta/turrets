@@ -210,7 +210,7 @@ function init(){
 		sprite.graphics.beginFill("#00ff77")
 			.mt(-10, -3).lt(-3, -3).lt(-3, -10).lt(3, -10).lt(3, -3)
 			.lt(10, -3).lt(10, 3).lt(3, 3).lt(3, 10).lt(-3, 10).lt(-3, 3).lt(-10, 3).ef();
-		sprite.alpha = 0.5;
+		sprite.alpha = 1;
 		sprite.x = e.x;
 		sprite.y = e.y;
 		sprite.on("tick", function(e){
