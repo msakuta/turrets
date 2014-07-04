@@ -29,10 +29,14 @@ function inherit(subclass,base){
 	subclass.prototype.constructor = subclass;
 }
 
+
+/// Unsigned modulo
+function umodulo(v, period){
+	return v - Math.floor(v / period) * period;
+}
+
 /// Approach src to dst by delta, optionally wrapping around wrap
 function approach(src, dst, delta, wrap){
-	if(wrap)
-		src -= Math.floor(src / wrap) * wrap;
 	if(src < dst){
 		if(dst - src < delta)
 			return dst;
@@ -51,6 +55,11 @@ function approach(src, dst, delta, wrap){
 		}
 		else return src - delta;
 	}
+}
+
+/// Rotation approach
+function rapproach(src, dst, delta){
+	return approach(src + Math.PI, dst + Math.PI, delta, Math.PI * 2) - Math.PI;
 }
 
 
@@ -128,8 +137,7 @@ Tower.prototype.update = function(dt){
 
 	if(this.cooldown <= 0 && this.target != null){
 		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-		desiredAngle -= Math.floor(desiredAngle / (Math.PI * 2.)) * (Math.PI * 2.);
-		this.angle = approach(this.angle, desiredAngle, Math.PI / 10., Math.PI * 2.);
+		this.angle = rapproach(this.angle, desiredAngle, Math.PI / 10.);
 		if(Math.abs(this.angle - desiredAngle) < Math.PI / 10.)
 //		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
 			this.shoot();
@@ -338,7 +346,7 @@ HealerTower.prototype.update = function(dt){
 
 	if(this.cooldown <= 0 && this.target != null){
 		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-		this.angle = approach(this.angle, desiredAngle, Math.PI / 10., Math.PI * 2.);
+		this.angle = rapproach(this.angle, desiredAngle, Math.PI / 10.);
 		if(Math.abs(this.angle - desiredAngle) < Math.PI / 10.)
 			this.shoot();
 	}
