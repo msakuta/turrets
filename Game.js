@@ -345,7 +345,7 @@ HealerTower.prototype.update = function(dt){
 		// Do not allow healing itself and those out of range
 		if(t == this || this.getRange() < t.measureDistance(this))
 			continue;
-		var damage = t.maxHealth() - t.health;
+		var damage = 1 - t.health / t.maxHealth();
 		if(heaviestDamage < damage){
 			heaviestDamage = damage;
 			damaged = t;
