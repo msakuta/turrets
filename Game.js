@@ -564,6 +564,7 @@ function Game(width, height){
 	this.autosave_time = 0;
 	this.score = 0;
 	this.credit = 0;
+	this.progress = 0;
 
 	/// A flag to defer initialization of game state to enale calling logic to
 	/// set event handlers on object creation in deserialization.
@@ -573,6 +574,7 @@ function Game(width, height){
 Game.prototype.global_time = 0;
 
 Game.prototype.enemyTypes = [Enemy, Enemy2, Enemy3];
+Game.prototype.enemyWaves = [0, 5, 10];
 Game.prototype.enemyFreq = [100000, 10000000, 10000000];
 
 Game.prototype.init = function(){
@@ -655,11 +657,13 @@ Game.prototype.update = function(dt, autoSaveHandler){
 		return k - 1;
 	}
 
-	if(0 != this.towers.length){
+	if(0 != this.towers.length && this.progress % 60 < 30){
 		for(var i = 0; i < this.enemyTypes.length; i++){
+			if(Math.floor(this.progress / 60) < this.enemyWaves[i])
+				continue;
 			var offset = 20 - i * 20;
 			var freq = this.enemyFreq[i];
-			var genCount = poissonRandom(this.rng, (this.score + 10000) / freq);
+			var genCount = poissonRandom(this.rng, (Math.floor(this.progress / 60) * 5000 + 10000) / freq);
 			for(var j = 0; j < genCount; j++){
 				var edge = this.rng.nexti() % 4;
 				var x = 0;
@@ -721,6 +725,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 
 //	invokes++;
 	Game.prototype.global_time += dt;
+	this.progress += dt;
 }
 
 Game.prototype.serialize = function(){
