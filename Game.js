@@ -143,6 +143,8 @@ Tower.prototype.update = function(dt){
 	}
 	if(nearest != null)
 		this.target = nearest;
+	if(this.target != null && this.target.health <= 0)
+		this.target = null;
 
 	if(this.cooldown <= 0 && this.target != null){
 		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
