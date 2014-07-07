@@ -384,6 +384,7 @@ function Bullet(game,x,y,vx,vy,angle,owner){
 	this.owner = owner;
 	this.team = owner.team;
 	this.damage = 1;
+	this.vanished = false;
 }
 
 Bullet.prototype.update = function(dt){
@@ -401,7 +402,13 @@ Bullet.prototype.update = function(dt){
 		}
 	}
 	this.onUpdate(dt);
-	return 0 < this.x && this.x < this.game.width && 0 < this.y && this.y < this.game.height;
+	if(0 < this.x && this.x < this.game.width && 0 < this.y && this.y < this.game.height)
+		return 1;
+	else{
+		// Hitting edge won't trigger bullet hit effect
+		this.vanished = true;
+		return 0;
+	}
 }
 
 Bullet.prototype.draw = function(ctx){

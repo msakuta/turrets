@@ -191,6 +191,8 @@ function init(){
 		}
 		b.onDelete = function(){
 			effectContainer.removeChild(shape);
+			if(this.vanished)
+				return;
 			var sprite = hitSpriteTemplate.clone();
 			sprite.x = this.x;
 			sprite.y = this.y;
