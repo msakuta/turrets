@@ -1,6 +1,7 @@
 var stage;
 var towerContainer;
 var enemyContainer;
+var topContainer;
 var canvas;
 var width;
 var height;
@@ -289,20 +290,18 @@ function init(){
 	statusPanelFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 80, 30);
 	statusPanelFrame.alpha = 0.5;
 	statusPanel.addChild(statusPanelFrame);
-	var statusText = new createjs.Text("Score: " + game.score, "10px Helvetica", "#ffffff");
-	statusText.y = 0;
-	statusText.x = 5;
-	statusText.on("tick", function(evt){
-		statusText.text = "Score: " + game.score;
-	});
-	statusPanel.addChild(statusText);
-	var statusText2 = new createjs.Text("Credit: " + game.credit, "10px Helvetica", "#ffffff");
-	statusText2.y = 10;
-	statusText2.x = 5;
-	statusText2.on("tick", function(evt){
-		statusText2.text = "Credit: " + game.credit;
-	});
-	statusPanel.addChild(statusText2);
+	var textDefs = [
+		function(evt){ evt.currentTarget.text = "Score: " + game.score; },
+		function(evt){ evt.currentTarget.text = "Credit: " + game.credit; },
+		function(evt){ evt.currentTarget.text = "Stage: " + game.stage; },
+	];
+	for(var j = 0; j < textDefs.length; j++){
+		var statusText = new createjs.Text("", "10px Helvetica", "#ffffff");
+		statusText.y = j * 10;
+		statusText.x = 5;
+		statusText.on("tick", textDefs[j]);
+		statusPanel.addChild(statusText);
+	}
 	statusPanel.x = 5;
 	statusPanel.y = 5;
 	overlay.addChild(statusPanel);
@@ -435,6 +434,23 @@ function init(){
 
 	stage.addChild(overlayTip);
 
+	var stageProgressBack = new createjs.Shape();
+	stageProgressBack.graphics.beginFill("#7f0000").beginStroke("#ffffff").drawRect(0, 0, width, 5);
+	stageProgressBack.x = 0;
+	stageProgressBack.y = height - 5;
+	stage.addChild(stageProgressBack);
+	var stageProgress = new createjs.Shape();
+	stageProgress.graphics.beginFill("#7fff7f").beginStroke("#ffffff").drawRect(0, 0, width, 5);
+	stageProgress.x = 0;
+	stageProgress.y = height - 5;
+	stageProgress.on("tick", function(evt){
+		stageProgress.scaleX = game.getStageProgress();
+	});
+	stage.addChild(stageProgress);
+
+	topContainer = new createjs.Container();
+	stage.addChild(topContainer);
+
 
 	// create spritesheet for explosion (Enemy death).
 	var explosionSpriteSheet = new createjs.SpriteSheet({
@@ -487,11 +503,86 @@ function init(){
 			lastHit = null;
 		}
 	}
+
+	showMenu();
 }
 
 function tick(event){
 	game.update(0.1, function(){});
 	stage.update();
+}
+
+/// Customized container for buy buttons
+function SelectStageButton(level, text){
+	createjs.Container.call(this);
+	var buttonFrame = new createjs.Shape();
+	buttonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 240, 50);
+	buttonFrame.alpha = 0.5;
+	this.addChild(buttonFrame);
+	var mouseOverFrame = new createjs.Shape();
+	mouseOverFrame.graphics.beginFill("#3f3f3f").beginStroke("#ffffff").drawRect(0, 0, 240, 50);
+	mouseOverFrame.alpha = 0.5;
+	mouseOverFrame.visible = false;
+	this.addChild(mouseOverFrame);
+	this.buttonText = new createjs.Text(text, "bold 24px Helvetica", "#ffffff");
+	this.buttonText.x = 5;
+	this.buttonText.y = 5;
+//		this.buttonImage.hitArea = buyButtonFrame;
+	this.addChild(this.buttonText);
+	this.scoreText = new createjs.Text("High score: ???", "bold 12px Helvetica", "#ffffff");
+	this.scoreText.x = 5;
+	this.scoreText.y = 30;
+//		this.buttonImage.hitArea = buyButtonFrame;
+	this.addChild(this.scoreText);
+
+	this.on("click", function(evt){
+		if(!game.isGameOver() && !game.stageClear)
+			return;
+		game.startStage(level);
+		showMenu.menu.visible = false;
+	});
+	this.on("mouseover", function(evt){
+		mouseOverFrame.visible = true;
+	});
+	this.on("mouseout", function(evt){
+		mouseOverFrame.visible = false;
+	});
+
+	this.updateHighScores = function(){
+		this.scoreText.text = "High score: " + game.highScores[level];
+	}
+	this.updateHighScores();
+}
+SelectStageButton.prototype = new createjs.Container();
+
+function showMenu(){
+
+	if(showMenu.menu === undefined){
+		showMenu.menu = new createjs.Container();
+		showMenu.buttons = [];
+		var captions = ["0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard"];
+		for(var i = 0; i < captions.length; i++){
+			var but = new SelectStageButton(i, captions[i]);
+			but.x = (width - 240) / 2;
+			but.y = 20 + i * 50;
+			showMenu.menu.addChild(but);
+			showMenu.buttons.push(but);
+		}
+		topContainer.addChild(showMenu.menu);
+	}
+
+	showMenu.menu.visible = true;
+
+	game.onStageClear = function(){
+		showMenu.menu.visible = true;
+		for(var i = 0; i < showMenu.buttons.length; i++){
+			showMenu.buttons[i].updateHighScores();
+		}
+	}
+
+	game.onInit = function(){
+		game.onStageClear();
+	}
 }
 
 function reset(){

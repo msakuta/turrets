@@ -570,10 +570,12 @@ function Game(width, height){
 	this.moving = false; ///< Moving something (temporary pause)
 	this.mouseX = 0;
 	this.mouseY = 0;
-	this.autosave_time = 0;
 	this.score = 0;
 	this.credit = 0;
 	this.progress = 0;
+	this.stage = null;
+	this.stageClear = true;
+	this.highScores = [];
 
 	/// A flag to defer initialization of game state to enale calling logic to
 	/// set event handlers on object creation in deserialization.
@@ -581,6 +583,8 @@ function Game(width, height){
 }
 
 Game.prototype.global_time = 0;
+Game.prototype.waveTime = 60;
+Game.prototype.stageTime = Game.prototype.waveTime * 10;
 
 Game.prototype.enemyTypes = [Enemy, Enemy2, Enemy3];
 Game.prototype.enemyWaves = [0, 5, 10];
@@ -591,12 +595,13 @@ Game.prototype.init = function(){
 		this.deserialize(localStorage.getItem("towers"));
 	}
 	this.initialized = true;
+	this.onInit();
 }
 
 Game.prototype.deserialize = function(stream){
 	var data = JSON.parse(stream);
 	if(data != null){
-		this.score = data.score;
+		this.highScores = data.highScores || [];
 		this.credit = data.credit;
 		this.towers = [];
 		var towers = data.towers;
@@ -625,12 +630,26 @@ Game.prototype.deserialize = function(stream){
 	}
 }
 
+Game.prototype.startStage = function(stage){
+	this.progress = Math.abs(stage * this.stageTime);
+	this.stage = stage;
+	this.stageClear = false;
+	this.score = 0;
+}
+
+Game.prototype.getStageProgress = function(){
+	return (this.progress - Math.abs(this.stage * this.stageTime)) / this.stageTime;
+}
+
 Game.prototype.update = function(dt, autoSaveHandler){
 	if(this.pause || this.moving)
 		return;
 
 	if(!this.initialized)
 		this.init();
+
+	if(this.stage === null)
+		dt = 0;
 
 	for(var i = 0; i < this.towers.length;){
 		var v = this.towers[i];
@@ -640,6 +659,9 @@ Game.prototype.update = function(dt, autoSaveHandler){
 		else
 			i++;
 	}
+
+	if(this.stage === null)
+		return;
 
 	var enemyCounts = [0, 0, 0];
 	for(var i = 0; i < this.enemies.length; i++){
@@ -666,13 +688,31 @@ Game.prototype.update = function(dt, autoSaveHandler){
 		return k - 1;
 	}
 
-	if(0 != this.towers.length && this.progress % 60 < 30){
+	if(0 <= this.stage && (Math.abs(this.stage) + 1) * this.stageTime <= this.progress){
+		if(!this.stageClear){
+			this.stageClear = true;
+			if(this.highScores[this.stage] === undefined || this.highScores[this.stage] < this.score)
+				this.highScores[this.stage] = this.score;
+
+			// Autosave: Check for localStorage
+			if(typeof(Storage) !== "undefined"){
+				var serialData = this.serialize();
+				localStorage.setItem("towers", serialData);
+				autoSaveHandler(serialData);
+			}
+
+			this.onStageClear();
+		}
+		return;
+	}
+
+	if(0 != this.towers.length && this.progress % this.waveTime < this.waveTime / 2){
 		for(var i = 0; i < this.enemyTypes.length; i++){
-			if(Math.floor(this.progress / 60) < this.enemyWaves[i])
+			if(Math.floor(this.progress / this.waveTime) < this.enemyWaves[i])
 				continue;
 			var offset = 20 - i * 20;
 			var freq = this.enemyFreq[i];
-			var genCount = poissonRandom(this.rng, (Math.floor(this.progress / 60) * 5000 + 10000) / freq);
+			var genCount = poissonRandom(this.rng, (Math.floor(this.progress / this.waveTime) * 5000 + 10000) / freq);
 			for(var j = 0; j < genCount; j++){
 				var edge = this.rng.nexti() % 4;
 				var x = 0;
@@ -720,25 +760,13 @@ Game.prototype.update = function(dt, autoSaveHandler){
 			i++;
 	}
 
-	if(this.autosave_time + 10. < Game.prototype.global_time){
-
-		// Check for localStorage
-		if(typeof(Storage) !== "undefined"){
-			var serialData = this.serialize();
-			localStorage.setItem("towers", serialData);
-			autoSaveHandler(serialData);
-		}
-
-		this.autosave_time += 10.;
-	}
-
 //	invokes++;
 	Game.prototype.global_time += dt;
 	this.progress += dt;
 }
 
 Game.prototype.serialize = function(){
-	var saveData = {score: this.score, credit: this.credit};
+	var saveData = {credit: this.credit, highScores: this.highScores};
 	var towers = [];
 	for(var i = 0; i < this.towers.length; i++){
 		var v = this.towers[i];
@@ -860,4 +888,10 @@ Game.prototype.addBulletEvent = function(b){
 }
 
 Game.prototype.onHeal = function(target,healer){
+}
+
+Game.prototype.onInit = function(){
+}
+
+Game.prototype.onStageClear = function(){
 }
