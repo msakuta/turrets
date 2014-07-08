@@ -510,7 +510,7 @@ function Enemy2(game,x,y){
 inherit(Enemy2, Enemy);
 
 
-/// \brief Tier 2 enemy with higher health and credit
+/// \brief Enemy with agility and evasive movements
 function Enemy3(game,x,y){
 	Enemy.apply(this, arguments);
 	this.maxHealth = function(){return 50;}
@@ -558,6 +558,68 @@ Enemy3.prototype.update = function(dt){
 }
 
 
+/// \brief Tier 4 enemy with higher health and credit
+function Enemy4(game,x,y){
+	Enemy.apply(this, arguments);
+	this.maxHealth = function(){return 500;}
+	this.health = this.maxHealth();
+	this.radius = 16;
+	this.credit = Math.ceil(game.rng.next() * 500);
+	this.shootFrequency = function(){return 0.2;};
+	this.angle = 0;
+	this.target = null;
+	this.cooldown = 15;
+}
+inherit(Enemy4, Enemy);
+
+Enemy4.prototype.update = function(dt){
+
+	if(this.target === null && this.game.towers.length !== 0){
+		this.target = this.game.towers[this.game.rng.nexti() % this.game.towers.length];
+	}
+
+	if(this.target !== null && 0 < this.target.health){
+		var dv = [this.target.x - this.x, this.target.y - this.y];
+		var dvlen = Math.sqrt(dv[0] * dv[0] + dv[1] * dv[1]);
+		if(0 < dvlen){
+			dv[0] /= dvlen;
+			dv[1] /= dvlen;
+			var rspeed = dv[0] * this.vx + dv[1] * this.vy;
+			// Make the ship stop at distance of 100 from target
+			dvlen -= 10 * rspeed + 100;
+			this.vx += (dv[0] * dvlen) * 0.1 * dt;
+			this.vy += (dv[1] * dvlen) * 0.1 * dt;
+			this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), Math.PI * 0.1);
+		}
+	}
+	else{
+		this.target = null;
+		this.vx *= 0.9;
+		this.vy *= 0.9;
+	}
+
+	this.x += this.vx * dt;
+	this.y += this.vy * dt;
+
+	if(0 < this.cooldown)
+		this.cooldown--;
+
+	if(this.target !== null && this.cooldown === 0){
+		var spd = 100.;
+		var angle = this.angle + (this.game.rng.next() - 0.5) * Math.PI * 0.05;
+		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+		for(var i = -1; i <= 1; i += 2){
+			var pos = mattvp(mat, [0, i * 6]);
+			this.game.addBullet(new Bullet(this.game, this.x + pos[0], this.y + pos[1],
+				spd * mat[0], spd * mat[1], angle, this));
+		}
+		this.cooldown = 15;
+	}
+	this.onUpdate(dt);
+	return true;
+}
+
+
 
 function Game(width, height){
 	this.width = width;
@@ -586,9 +648,12 @@ Game.prototype.global_time = 0;
 Game.prototype.waveTime = 60;
 Game.prototype.stageTime = Game.prototype.waveTime * 10;
 
-Game.prototype.enemyTypes = [Enemy, Enemy2, Enemy3];
-Game.prototype.enemyWaves = [0, 5, 10];
-Game.prototype.enemyFreq = [100000, 10000000, 10000000];
+Game.prototype.enemyTypes = [
+	{type: Enemy, waves: 0, freq: function(f){return f < 20 ? (f + 2) / 20 : 1 / (f - 20 + 1);}},
+	{type: Enemy2, waves: 5, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
+	{type: Enemy3, waves: 10, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
+	{type: Enemy4, waves: 20, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
+];
 
 Game.prototype.init = function(){
 	if(typeof(Storage) !== "undefined"){
@@ -667,7 +732,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 	for(var i = 0; i < this.enemies.length; i++){
 		var e = this.enemies[i];
 		for(var j = 0; j < this.enemyTypes.length; j++){
-			if(e instanceof this.enemyTypes[j]){
+			if(e instanceof this.enemyTypes[j].type){
 				enemyCounts[j]++;
 				break;
 			}
@@ -708,11 +773,11 @@ Game.prototype.update = function(dt, autoSaveHandler){
 
 	if(0 != this.towers.length && this.progress % this.waveTime < this.waveTime / 2){
 		for(var i = 0; i < this.enemyTypes.length; i++){
-			if(Math.floor(this.progress / this.waveTime) < this.enemyWaves[i])
+			if(Math.floor(this.progress / this.waveTime) < this.enemyTypes[i].waves)
 				continue;
 			var offset = 20 - i * 20;
-			var freq = this.enemyFreq[i];
-			var genCount = poissonRandom(this.rng, (Math.floor(this.progress / this.waveTime) * 5000 + 10000) / freq);
+			var freq = this.enemyTypes[i].freq(Math.floor(this.progress / this.waveTime));
+			var genCount = poissonRandom(this.rng, freq);
 			for(var j = 0; j < genCount; j++){
 				var edge = this.rng.nexti() % 4;
 				var x = 0;
@@ -733,7 +798,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 					x = this.width * this.rng.next();
 					y = this.height;
 				}
-				var e = new this.enemyTypes[i](this, x, y);
+				var e = new this.enemyTypes[i].type(this, x, y);
 				this.enemies.push(e);
 				this.addEnemyEvent(e);
 			}

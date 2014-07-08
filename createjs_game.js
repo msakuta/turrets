@@ -143,15 +143,19 @@ function init(){
 		}
 	}
 
-	var enemy2Bitmap = new createjs.Bitmap("assets/boss.png");
-	var enemyBitmap = new createjs.Bitmap("assets/enemy.png");
-	var enemy3Bitmap = new createjs.Bitmap("assets/enemy3.png");
+	var enemyBitmaps = {
+		Enemy: new createjs.Bitmap("assets/enemy.png"),
+		Enemy2: new createjs.Bitmap("assets/boss.png"),
+		Enemy3: new createjs.Bitmap("assets/enemy3.png"),
+		Enemy4: new createjs.Bitmap("assets/enemy4.png"),
+	};
 
 	game.addEnemyEvent = function(e){
 		var graph = new createjs.Container();
-		var bm = (e instanceof Enemy3 ? enemy3Bitmap : e instanceof Enemy2 ? enemy2Bitmap : enemyBitmap).clone();
-		bm.x = -(e instanceof Enemy2 ? 32 : 16) / 2;
-		bm.y = -(e instanceof Enemy2 ? 32 : 16) / 2;
+		var bm = enemyBitmaps[e.constructor.name].clone();
+		var bounds = bm.getBounds();
+		bm.x = -(bounds.width) / 2;
+		bm.y = -(bounds.height) / 2;
 		graph.addChild(bm);
 		enemyContainer.addChild(graph);
 		e.onUpdate = function(dt){
