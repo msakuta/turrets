@@ -559,10 +559,15 @@ function showMenu(){
 
 	if(showMenu.menu === undefined){
 		showMenu.menu = new createjs.Container();
+		var label = new createjs.Text("SELECT DIFFICULTY", "bold 12px Helvetica", "#ffffff");
+		label.x = (width - label.getBounds().width) / 2;
+		label.y = 5;
+		showMenu.menu.addChild(label);
 		showMenu.buttons = [];
-		var captions = ["0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard"];
+		var captions = ["0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard", "10 - Insane"];
 		for(var i = 0; i < captions.length; i++){
-			var but = new SelectStageButton(i, captions[i]);
+			var str = captions[i].split(" ")[0];
+			var but = new SelectStageButton(parseInt(str), captions[i]);
 			but.x = (width - 240) / 2;
 			but.y = 20 + i * 50;
 			showMenu.menu.addChild(but);
