@@ -754,7 +754,7 @@ Game.prototype.update = function(dt, autoSaveHandler){
 	}
 
 	if(0 <= this.stage && (Math.abs(this.stage) + 1) * this.stageTime <= this.progress){
-		if(!this.stageClear){
+		if(!this.isGameOver() && !this.stageClear){
 			this.stageClear = true;
 			if(this.highScores[this.stage] === undefined || this.highScores[this.stage] < this.score)
 				this.highScores[this.stage] = this.score;
