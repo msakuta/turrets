@@ -700,6 +700,11 @@ Game.prototype.startStage = function(stage){
 	this.stage = stage;
 	this.stageClear = false;
 	this.score = 0;
+	// Restore health on stage start
+	for(var i = 0; i < this.towers.length; i++){
+		var v = this.towers[i];
+		v.health = v.maxHealth();
+	}
 }
 
 Game.prototype.getStageProgress = function(){
