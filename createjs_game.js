@@ -121,7 +121,7 @@ function init(){
 			if(tip.visible){
 				tiptexts[0].text = "Kills: " + this.kills;
 				tiptexts[1].text = "Damage: " + Math.round(this.damage);
-				tiptexts[2].text = "Health: " + this.health + "/" + this.maxHealth();
+				tiptexts[2].text = "Health: " + Math.ceil(this.health) + "/" + this.maxHealth();
 				tiptexts[3].text = "Level: " + this.level;
 				tiptexts[4].text = "XP: " + this.xp + "/" + this.maxXp();
 				tiptexts[5].text = "Range: " + (this.getRange() ? this.getRange() : "none");
@@ -148,6 +148,7 @@ function init(){
 		Enemy2: new createjs.Bitmap("assets/boss.png"),
 		Enemy3: new createjs.Bitmap("assets/enemy3.png"),
 		Enemy4: new createjs.Bitmap("assets/enemy4.png"),
+		BeamEnemy: new createjs.Bitmap("assets/BeamEnemy.png"),
 	};
 
 	game.addEnemyEvent = function(e){
@@ -158,10 +159,22 @@ function init(){
 		bm.y = -(bounds.height) / 2;
 		graph.addChild(bm);
 		enemyContainer.addChild(graph);
+		var beamShape = null;
 		e.onUpdate = function(dt){
 			graph.x = this.x;
 			graph.y = this.y;
 			graph.rotation = this.angle * 360 / 2 / Math.PI + 90;
+			if(e instanceof BeamEnemy && 0 < e.shootPhase){
+				if(beamShape === null){
+					beamShape = new createjs.Shape();
+					beamShape.graphics.beginFill("#003f7f").drawRect(-e.beamWidth / 2, 0, e.beamWidth, -e.beamLength)
+						.beginFill("#007fff").drawRect(-e.beamWidth / 4, 0, e.beamWidth / 2, -e.beamLength);
+					graph.addChild(beamShape);
+				}
+				beamShape.visible = true;
+			}
+			else if(beamShape !== null)
+				beamShape.visible = false;
 		}
 		e.onDelete = function(){
 			enemyContainer.removeChild(graph);

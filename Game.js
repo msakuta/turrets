@@ -572,6 +572,10 @@ function Enemy4(game,x,y){
 }
 inherit(Enemy4, Enemy);
 
+Enemy4.prototype.getRot = function(angle){
+	return [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+}
+
 Enemy4.prototype.update = function(dt){
 
 	if(this.target === null && this.game.towers.length !== 0){
@@ -607,7 +611,7 @@ Enemy4.prototype.update = function(dt){
 	if(this.target !== null && this.cooldown === 0){
 		var spd = 100.;
 		var angle = this.angle + (this.game.rng.next() - 0.5) * Math.PI * 0.05;
-		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+		var mat = this.getRot(angle);
 		for(var i = -1; i <= 1; i += 2){
 			var pos = mattvp(mat, [0, i * 6]);
 			this.game.addBullet(new Bullet(this.game, this.x + pos[0], this.y + pos[1],
@@ -619,6 +623,84 @@ Enemy4.prototype.update = function(dt){
 	return true;
 }
 
+/// \brief Tier 4 enemy with higher health and credit
+function BeamEnemy(game,x,y){
+	Enemy.apply(this, arguments);
+	this.maxHealth = function(){return 2500;}
+	this.health = this.maxHealth();
+	this.radius = 24;
+	this.credit = Math.ceil(game.rng.next() * 500);
+	this.shootFrequency = function(){return 0.2;};
+	this.angle = 0;
+	this.target = null;
+	this.cooldown = 15;
+	this.shootPhase = 0;
+}
+inherit(BeamEnemy, Enemy4);
+
+BeamEnemy.prototype.beamLength = 400;
+BeamEnemy.prototype.beamWidth = 8;
+
+BeamEnemy.prototype.update = function(dt){
+
+	if(this.target === null && this.game.towers.length !== 0){
+		this.target = this.game.towers[this.game.rng.nexti() % this.game.towers.length];
+	}
+
+	if(this.target !== null && 0 < this.target.health){
+		var dv = [this.target.x - this.x, this.target.y - this.y];
+		var dvlen = Math.sqrt(dv[0] * dv[0] + dv[1] * dv[1]);
+		if(0 < dvlen){
+			dv[0] /= dvlen;
+			dv[1] /= dvlen;
+			var rspeed = dv[0] * this.vx + dv[1] * this.vy;
+			// Make the ship stop at distance of 100 from target
+			dvlen -= 10 * rspeed + 150;
+			this.vx += (dv[0] * dvlen) * 0.1 * dt;
+			this.vy += (dv[1] * dvlen) * 0.1 * dt;
+			this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), Math.PI * 0.1);
+		}
+	}
+	else{
+		this.target = null;
+		this.vx *= 0.9;
+		this.vy *= 0.9;
+	}
+
+	this.x += this.vx * dt;
+	this.y += this.vy * dt;
+
+	if(0 < this.cooldown)
+		this.cooldown--;
+
+	if(this.target !== null && this.cooldown === 0){
+		this.shootPhase = 30;
+		this.cooldown = 90;
+	}
+	if(0 < this.shootPhase){
+		var spd = 100.;
+		var angle = this.angle;
+		var mat = this.getRot(angle);
+		// The beam penetrates through all towers (it may be too strong)
+		for(var j = 0; j < this.game.towers.length; j++){
+			var e = this.game.towers[j];
+			// Distance of the target from the beam axis
+			var dotx = (e.x - this.x) * mat[2] + (e.y - this.y) * mat[3];
+			// Position of the target along the beam axis
+			var doty = (e.x - this.x) * mat[0] + (e.y - this.y) * mat[1];
+			// Check intersection of the beam with the target
+			if(Math.abs(dotx) < e.radius + 10 && 0 <= doty && doty < this.beamLength + e.radius){
+				this.damage += 0.2;
+				if(e.receiveDamage(0.2)){
+					this.onKill(e);
+				}
+			}
+		}
+		this.shootPhase--;
+	}
+	this.onUpdate(dt);
+	return true;
+}
 
 
 function Game(width, height){
@@ -650,9 +732,10 @@ Game.prototype.stageTime = Game.prototype.waveTime * 10;
 
 Game.prototype.enemyTypes = [
 	{type: Enemy, waves: 0, freq: function(f){return f < 20 ? (f + 2) / 20 : 1 / (f - 20 + 1);}},
-	{type: Enemy2, waves: 5, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
+	{type: Enemy2, waves: 5, freq: function(f){return f < 40 ? (f * 5000 + 10000) / 10000000 : 0.001 / (f - 40 + 1);}},
 	{type: Enemy3, waves: 10, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
 	{type: Enemy4, waves: 20, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
+	{type: BeamEnemy, waves: 30, freq: function(f){return (f * 5000 + 10000) / 20000000;}},
 ];
 
 Game.prototype.init = function(){
