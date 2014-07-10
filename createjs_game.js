@@ -150,6 +150,13 @@ function init(){
 		Enemy4: new createjs.Bitmap("assets/enemy4.png"),
 		BeamEnemy: new createjs.Bitmap("assets/BeamEnemy.png"),
 	};
+	var enemyExplosions = {
+		Enemy: 1,
+		Enemy2: 5,
+		Enemy3: 2,
+		Enemy4: 5,
+		BeamEnemy: 10,
+	};
 
 	game.addEnemyEvent = function(e){
 		var graph = new createjs.Container();
@@ -178,7 +185,7 @@ function init(){
 		}
 		e.onDelete = function(){
 			enemyContainer.removeChild(graph);
-			var effectCount = e instanceof Enemy2 ? 5 : 1;
+			var effectCount = enemyExplosions[this.constructor.name];
 			for(var i = 0; i < effectCount; i++){
 				var sprite = explosionSpriteTemplate.clone();
 				sprite.x = this.x;
