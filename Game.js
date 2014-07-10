@@ -118,7 +118,7 @@ Tower.prototype.dispName = function(){
 Tower.prototype.serialize = function(){
 	var v = this;
 	return {
-		className: "Tower",
+		className: v.constructor.name,
 		kills: v.kills,
 		damage: v.damage,
 		x: v.x,
@@ -297,12 +297,6 @@ ShotgunTower.prototype.cost = function(){
 	return Math.ceil(Math.pow(1.5, game.towers.length) * 150);
 }
 
-ShotgunTower.prototype.serialize = function(){
-	var ret = Tower.prototype.serialize.call(this);
-	ret.className = "ShotgunTower";
-	return ret;
-}
-
 ShotgunTower.prototype.shoot = function(){
 	var spd = 100;
 	var bullets = Math.floor(5 + this.level / 2);
@@ -330,12 +324,6 @@ HealerTower.prototype.dispName = function(){
 
 HealerTower.prototype.cost = function(){
 	return Math.ceil(Math.pow(1.5, game.towers.length) * 200);
-}
-
-HealerTower.prototype.serialize = function(){
-	var ret = Tower.prototype.serialize.call(this);
-	ret.className = "HealerTower";
-	return ret;
 }
 
 HealerTower.prototype.shoot = function(){
@@ -412,12 +400,6 @@ BeamTower.prototype.dispName = function(){
 
 BeamTower.prototype.cost = function(){
 	return Math.ceil(Math.pow(1.5, game.towers.length) * 350);
-}
-
-BeamTower.prototype.serialize = function(){
-	var ret = Tower.prototype.serialize.call(this);
-	ret.className = "BeamTower";
-	return ret;
 }
 
 BeamTower.prototype.getDamage = function(){
