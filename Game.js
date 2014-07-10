@@ -143,6 +143,10 @@ Tower.prototype.update = function(dt){
 	var enemies = this.game.enemies;
 	var nearest = null;
 	var nearestDist = 1e6;
+
+	// If this tower is sticky, tolerate before switching target
+	if(this.stickiness !== undefined && this.target !== null)
+		nearestDist = this.measureDistance(this.target) / this.stickiness;
 	for(var i = 0; i < enemies.length; i++){
 		var e = enemies[i];
 		var dist = Math.sqrt((this.x - e.x) * (this.x - e.x) + (this.y - e.y) * (this.y - e.y));
@@ -383,6 +387,7 @@ function BeamTower(game,x,y){
 inherit(BeamTower, Tower); // Subclass
 
 BeamTower.prototype.rotateSpeed = Math.PI / 30.;
+BeamTower.prototype.stickiness = 3;
 BeamTower.prototype.beamLength = 400;
 BeamTower.prototype.beamWidth = 8;
 
