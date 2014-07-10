@@ -18,6 +18,20 @@ function init(){
 	width = parseInt(canvas.style.width);
 	height = parseInt(canvas.style.height);
 	game = new Game(width, height);
+
+	var towerBitmaps = {};
+	towerBitmaps[HealerTower] = new createjs.Bitmap("assets/healer.png");
+	towerBitmaps[Tower] = new createjs.Bitmap("assets/turret.png");
+	towerBitmaps[ShotgunTower] = new createjs.Bitmap("assets/shotgun.png");
+	towerBitmaps[BeamTower] = new createjs.Bitmap("assets/BeamTower.png");
+
+	function createBeamShape(e, outerColor, innerColor){
+		var beamShape = new createjs.Shape();
+		beamShape.graphics.beginFill(outerColor).drawRect(-e.beamWidth / 2, 0, e.beamWidth, -e.beamLength)
+			.beginFill(innerColor).drawRect(-e.beamWidth / 4, 0, e.beamWidth / 2, -e.beamLength);
+		return beamShape;
+	}
+
 	game.addTowerEvent = function(t){
 		var graph = new createjs.Container();
 
@@ -28,15 +42,15 @@ function init(){
 
 		var shape = new createjs.Container();
 		var activeShape = new createjs.Shape();
-		activeShape.graphics.beginStroke("#00ffff").drawCircle(0, 0, 12);
+		activeShape.graphics.beginStroke("#00ffff").drawCircle(0, 0, t.radius);
 		activeShape.visible = false;
 		shape.addChild(activeShape);
+		var bm = towerBitmaps[t.constructor].clone();
+		var bounds = bm.getBounds();
+		bm.x = -bounds.width / 2;
+		bm.y = -bounds.height / 2;
 		var hitShape = new createjs.Shape();
-		hitShape.graphics.beginFill("#ffffff").drawCircle(10, 10, 10);
-		var bm = new createjs.Bitmap(t instanceof ShotgunTower ? "assets/shotgun.png"
-			: t instanceof HealerTower ? "assets/healer.png" : "assets/turret.png");
-		bm.x = -10;
-		bm.y = -10;
+		hitShape.graphics.beginFill("#ffffff").drawCircle(t.radius, t.radius, t.radius);
 		bm.hitArea = hitShape;
 		shape.addChild(bm);
 
@@ -114,6 +128,7 @@ function init(){
 			}
 			endHit();
 		});
+		var beamShape = null;
 		t.onUpdate = function(dt){
 			shape.rotation = this.angle * 360 / 2 / Math.PI + 90;
 			graph.x = this.x;
@@ -136,6 +151,15 @@ function init(){
 					healthBar.addChild(healthBarGreen);
 				}
 			}
+			if(t instanceof BeamTower && 0 < t.shootPhase){
+				if(beamShape === null){
+					beamShape = createBeamShape(t, "#7f3fff", "#ff7fff");
+					shape.addChild(beamShape);
+				}
+				beamShape.visible = true;
+			}
+			else if(beamShape !== null)
+				beamShape.visible = false;
 		}
 		t.onDelete = function(){
 			towerContainer.removeChild(graph);
@@ -173,9 +197,7 @@ function init(){
 			graph.rotation = this.angle * 360 / 2 / Math.PI + 90;
 			if(e instanceof BeamEnemy && 0 < e.shootPhase){
 				if(beamShape === null){
-					beamShape = new createjs.Shape();
-					beamShape.graphics.beginFill("#003f7f").drawRect(-e.beamWidth / 2, 0, e.beamWidth, -e.beamLength)
-						.beginFill("#007fff").drawRect(-e.beamWidth / 4, 0, e.beamWidth / 2, -e.beamLength);
+					beamShape = createBeamShape(e, "#003f7f", "#007fff");
 					graph.addChild(beamShape);
 				}
 				beamShape.visible = true;
@@ -361,6 +383,8 @@ function init(){
 		this.buttonImage.x = 5;
 		this.buttonImage.y = 5;
 		this.buttonImage.hitArea = buyButtonFrame;
+		this.buttonImage.scaleX = 20 / this.buttonImage.getBounds().width;
+		this.buttonImage.scaleY = 20 / this.buttonImage.getBounds().height;
 		this.addChild(this.buttonImage);
 
 		var buyTip = new TextTip([classType.prototype.dispName(), "", {text: "Drag & Drop to buy", color: "#ffff00"}]);
@@ -429,6 +453,14 @@ function init(){
 		buyHealerButton.buttonImage.alpha = game.credit < HealerTower.prototype.cost() ? 0.25 : 1.;
 	});
 	overlay.addChild(buyHealerButton);
+
+	var buyBeamButton = new BuyButton(BeamTower, "assets/BeamTower.png");
+	buyBeamButton.x = width - 40;
+	buyBeamButton.y = 100;
+	buyBeamButton.on("tick", function(evt){
+		buyBeamButton.buttonImage.alpha = game.credit < BeamTower.prototype.cost() ? 0.25 : 1.;
+	});
+	overlay.addChild(buyBeamButton);
 
 	var deleteButton = new createjs.Container();
 	deleteShape = new createjs.Shape();

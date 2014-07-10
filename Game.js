@@ -80,7 +80,6 @@ function Entity(game,x,y){
 	this.vx = 0;
 	this.vy = 0;
 	this.health = 10;
-	this.maxHealth = function(){return 10;}
 	this.xp = 0;
 	this.level = 1;
 	this.team = 0;
@@ -88,11 +87,16 @@ function Entity(game,x,y){
 }
 Entity.prototype.onKill = function(){};
 
+Entity.prototype.maxHealth = function(){return 10;}
+
+Entity.prototype.getRot = function(angle){
+	return [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+}
+
 function Tower(game,x,y){
 	Entity.call(this,game,x,y);
 	this.angle = 0;
 	this.health = 10;
-	this.maxHealth = function(){return Math.ceil(Math.pow(1.2, this.level) * 10);};
 	this.target = null;
 	this.id = Tower.prototype.idGen++;
 	this.cooldown = 4;
@@ -100,6 +104,12 @@ function Tower(game,x,y){
 	this.damage = 0;
 }
 inherit(Tower, Entity); // Subclass
+
+Tower.prototype.maxHealth = function(){
+	return Math.ceil(Math.pow(1.2, this.level) * 10);
+};
+
+Tower.prototype.rotateSpeed = Math.PI / 10.; // Radians per frame
 
 Tower.prototype.dispName = function(){
 	return "Machine Gun";
@@ -146,11 +156,12 @@ Tower.prototype.update = function(dt){
 	if(this.target != null && this.target.health <= 0)
 		this.target = null;
 
-	if(this.cooldown <= 0 && this.target != null){
+	if(this.target != null){
 		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-		this.angle = rapproach(this.angle, desiredAngle, Math.PI / 10.);
-		if(Math.abs(this.angle - desiredAngle) < Math.PI / 10.)
+		this.angle = rapproach(this.angle, desiredAngle, this.rotateSpeed);
+		if(Math.abs(this.angle - desiredAngle) < this.rotateSpeed)
 //		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+		if(this.cooldown <= 0)
 			this.shoot();
 	}
 
@@ -355,10 +366,10 @@ HealerTower.prototype.update = function(dt){
 	}
 	this.target = damaged;
 
-	if(this.cooldown <= 0 && this.target != null){
+	if(this.target != null){
 		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
 		this.angle = rapproach(this.angle, desiredAngle, Math.PI / 10.);
-		if(Math.abs(this.angle - desiredAngle) < Math.PI / 10.)
+		if(this.cooldown <= 0 && Math.abs(this.angle - desiredAngle) < Math.PI / 10.)
 			this.shoot();
 	}
 
@@ -373,6 +384,82 @@ HealerTower.prototype.update = function(dt){
 HealerTower.prototype.getRange = function(){
 	return Math.ceil((this.level + 10) * 5);
 }
+
+/// Tower with a shotgun, which shoots spreading bullets
+function BeamTower(game,x,y){
+	Tower.call(this,game,x,y);
+	this.radius = 18;
+	this.cooldown = 15;
+	this.shootPhase = 0;
+}
+inherit(BeamTower, Tower); // Subclass
+
+BeamTower.prototype.rotateSpeed = Math.PI / 30.;
+BeamTower.prototype.beamLength = 400;
+BeamTower.prototype.beamWidth = 8;
+
+BeamTower.prototype.maxHealth = function(){
+	return Math.ceil(Math.pow(1.2, this.level) * 25);
+}
+
+BeamTower.prototype.maxXp = function(){
+	return Math.ceil(Math.pow(1.5, this.level-1) * 500);
+}
+
+BeamTower.prototype.dispName = function(){
+	return "BeamTower";
+}
+
+BeamTower.prototype.cost = function(){
+	return Math.ceil(Math.pow(1.5, game.towers.length) * 350);
+}
+
+BeamTower.prototype.serialize = function(){
+	var ret = Tower.prototype.serialize.call(this);
+	ret.className = "BeamTower";
+	return ret;
+}
+
+BeamTower.prototype.getDamage = function(){
+	return 3 + this.level * 0.5;
+}
+
+BeamTower.prototype.shoot = function(){
+	if(this.target !== null && this.cooldown === 0){
+		this.shootPhase = 45;
+		this.cooldown = 90;
+	}
+}
+
+BeamTower.prototype.update = function(dt){
+	if(!Tower.prototype.update.call(this, dt))
+		return false;
+	var spd = 100;
+	var bullets = Math.floor(5 + this.level / 2);
+	if(0 < this.shootPhase){
+		var spd = 100.;
+		var angle = this.angle;
+		var mat = this.getRot(angle);
+		// The beam penetrates through all enemies (good against crowd)
+		for(var j = 0; j < this.game.enemies.length; j++){
+			var e = this.game.enemies[j];
+			// Distance of the target from the beam axis
+			var dotx = (e.x - this.x) * mat[2] + (e.y - this.y) * mat[3];
+			// Position of the target along the beam axis
+			var doty = (e.x - this.x) * mat[0] + (e.y - this.y) * mat[1];
+			// Check intersection of the beam with the target
+			if(Math.abs(dotx) < e.radius + 10 && 0 <= doty && doty < this.beamLength + e.radius){
+				this.damage += this.getDamage();
+				if(e.receiveDamage(this.getDamage())){
+					this.onKill(e);
+				}
+			}
+		}
+		this.shootPhase--;
+	}
+	return true;
+}
+
 
 function Bullet(game,x,y,vx,vy,angle,owner){
 	this.game = game;
@@ -571,10 +658,6 @@ function Enemy4(game,x,y){
 	this.cooldown = 15;
 }
 inherit(Enemy4, Enemy);
-
-Enemy4.prototype.getRot = function(angle){
-	return [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
-}
 
 Enemy4.prototype.update = function(dt){
 
