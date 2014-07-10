@@ -27,8 +27,9 @@ function init(){
 
 	function createBeamShape(e, outerColor, innerColor){
 		var beamShape = new createjs.Shape();
-		beamShape.graphics.beginFill(outerColor).drawRect(-e.beamWidth / 2, 0, e.beamWidth, -e.beamLength)
-			.beginFill(innerColor).drawRect(-e.beamWidth / 4, 0, e.beamWidth / 2, -e.beamLength);
+		beamShape.graphics.beginLinearGradientFill([outerColor, innerColor, innerColor, outerColor],
+			[0, 0.4, 0.6, 1], -e.beamWidth / 2, 0, e.beamWidth / 2, 0)
+			.drawRect(-e.beamWidth / 2, 0, e.beamWidth, -e.beamLength);
 		return beamShape;
 	}
 
@@ -153,7 +154,7 @@ function init(){
 			}
 			if(t instanceof BeamTower && 0 < t.shootPhase){
 				if(beamShape === null){
-					beamShape = createBeamShape(t, "#7f3fff", "#ff7fff");
+					beamShape = createBeamShape(t, "#3f1f3f", "#ff7fff");
 					shape.addChild(beamShape);
 				}
 				beamShape.visible = true;
@@ -197,7 +198,7 @@ function init(){
 			graph.rotation = this.angle * 360 / 2 / Math.PI + 90;
 			if(e instanceof BeamEnemy && 0 < e.shootPhase){
 				if(beamShape === null){
-					beamShape = createBeamShape(e, "#003f7f", "#007fff");
+					beamShape = createBeamShape(e, "#001f3f", "#007fff");
 					graph.addChild(beamShape);
 				}
 				beamShape.visible = true;
