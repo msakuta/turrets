@@ -330,12 +330,16 @@ HealerTower.prototype.cost = function(){
 	return Math.ceil(Math.pow(1.5, game.towers.length) * 200);
 }
 
+HealerTower.prototype.healAmount = function(){
+	return 1 + 0.1 * this.level;
+}
+
 HealerTower.prototype.shoot = function(){
 	if(this.target != null && this.target.health < this.target.maxHealth()){
-		this.target.health++;
-		this.damage++;
+		this.target.health = Math.min(this.target.maxHealth(), this.target.health + this.healAmount());
+		this.damage += this.healAmount();
 		this.game.onHeal(this.target, this);
-		this.gainXp(3); // Healer has less opprtunity to gain experience than offensive towers, so gain high exp on healing
+		this.gainXp(3 * this.healAmount()); // Healer has less opprtunity to gain experience than offensive towers, so gain high exp on healing
 		this.cooldown = Math.ceil(4 + 320 / (10 + this.level));
 	}
 }

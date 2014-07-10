@@ -139,7 +139,7 @@ function init(){
 				tiptexts[1].text = "Damage: " + Math.round(this.damage);
 				tiptexts[2].text = "Health: " + Math.ceil(this.health) + "/" + this.maxHealth();
 				tiptexts[3].text = "Level: " + this.level;
-				tiptexts[4].text = "XP: " + this.xp + "/" + this.maxXp();
+				tiptexts[4].text = "XP: " + Math.ceil(this.xp) + "/" + this.maxXp();
 				tiptexts[5].text = "Range: " + (this.getRange() ? this.getRange() : "none");
 				if(healthBar.currentValue != t.health){
 					healthBar.currentValue = t.health;
