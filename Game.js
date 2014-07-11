@@ -93,6 +93,10 @@ Entity.prototype.getRot = function(angle){
 	return [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
 }
 
+Entity.prototype.getDPS = function(frameTime){
+	return null;
+}
+
 function Tower(game,x,y){
 	Entity.call(this,game,x,y);
 	this.angle = 0;
@@ -186,7 +190,15 @@ Tower.prototype.shoot = function(){
 		b.damage = Math.pow(1.2, this.level);
 		this.game.addBullet(b);
 	}
-	this.cooldown = 4;
+	this.cooldown = this.getCooldownTime();
+}
+
+Tower.prototype.getCooldownTime = function(){
+	return 4;
+}
+
+Tower.prototype.getDPS = function(frameTime){
+	return 2 * Math.pow(1.2, this.level) / this.getCooldownTime() / frameTime;
 }
 
 Tower.prototype.maxXp = function(){
@@ -312,7 +324,15 @@ ShotgunTower.prototype.shoot = function(){
 		b.damage = Math.pow(1.2, this.level);
 		this.game.addBullet(b);
 	}
-	this.cooldown = 20;
+	this.cooldown = this.getCooldownTime();
+}
+
+ShotgunTower.prototype.getCooldownTime = function(){
+	return 20;
+}
+
+ShotgunTower.prototype.getDPS = function(frameTime){
+	return Math.floor(5 + this.level / 2) * Math.pow(1.2, this.level) / this.getCooldownTime() / frameTime;
 }
 
 
@@ -342,6 +362,10 @@ HealerTower.prototype.shoot = function(){
 		this.gainXp(3 * this.healAmount()); // Healer has less opprtunity to gain experience than offensive towers, so gain high exp on healing
 		this.cooldown = Math.ceil(4 + 320 / (10 + this.level));
 	}
+}
+
+HealerTower.prototype.getDPS = function(frameTime){
+	return -this.healAmount() / Math.ceil(4 + 320 / (10 + this.level)) / frameTime;
 }
 
 HealerTower.prototype.update = function(dt){
@@ -420,6 +444,10 @@ BeamTower.prototype.shoot = function(){
 		this.shootPhase = 45;
 		this.cooldown = 90;
 	}
+}
+
+BeamTower.prototype.getDPS = function(frameTime){
+	return this.getDamage() * 45 / 90 / frameTime;
 }
 
 BeamTower.prototype.update = function(dt){

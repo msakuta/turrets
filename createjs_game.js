@@ -12,6 +12,7 @@ var hitSpriteTemplate;
 var pauseText;
 var boughtTower = null;
 var deleteShape;
+var frameTime = 0.1;
 
 function init(){
 	canvas = document.getElementById("scratch");
@@ -62,14 +63,15 @@ function init(){
 		healthBar.currentValue = t.health;
 		var tip = new createjs.Container();
 		var tipshape = new createjs.Shape();
-		tipshape.graphics.beginFill("#111").beginStroke("#fff").drawRect(-40, 15, 90, 60).endStroke();
+		var tiplines = 7;
+		tipshape.graphics.beginFill("#111").beginStroke("#fff").drawRect(-40, 12, 90, tiplines * 10 + 2).endStroke();
 		tip.visible = false;
 		var tipRange = new createjs.Shape();
 		tip.addChild(tipRange);
 		tip.addChild(healthBar);
 		tip.addChild(tipshape);
 		var tiptexts = [];
-		for(var i = 0; i < 6; i++){
+		for(var i = 0; i < tiplines; i++){
 			var tiptext = new createjs.Text("kills: 0", "10px Helvetica", "#ffffff");
 			tiptext.x = -38;
 			tiptext.y = 13 + i * 10;
@@ -141,6 +143,7 @@ function init(){
 				tiptexts[3].text = "Level: " + this.level;
 				tiptexts[4].text = "XP: " + Math.ceil(this.xp) + "/" + this.maxXp();
 				tiptexts[5].text = "Range: " + (this.getRange() ? this.getRange() : "none");
+				tiptexts[6].text = "DPS: " + (Math.ceil(this.getDPS(frameTime) * 10) / 10 || "none");
 				if(healthBar.currentValue != t.health){
 					healthBar.currentValue = t.health;
 					healthBar.removeAllChildren();
@@ -565,7 +568,7 @@ function init(){
 }
 
 function tick(event){
-	game.update(0.1, function(){});
+	game.update(frameTime, function(){});
 	stage.update();
 }
 
