@@ -6,6 +6,7 @@ var canvas;
 var width;
 var height;
 var game;
+var backImage = new createjs.Bitmap("assets/back2.jpg");
 
 var explosionSpriteTemplate;
 var hitSpriteTemplate;
@@ -306,6 +307,7 @@ function init(){
 
 	stage = new createjs.Stage("scratch");
 	stage.enableMouseOver();
+	stage.addChild(backImage);
 
 	towerContainer = new createjs.Container();
 	stage.addChild(towerContainer);
