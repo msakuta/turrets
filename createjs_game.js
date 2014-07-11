@@ -178,6 +178,7 @@ function init(){
 		Enemy3: new createjs.Bitmap("assets/enemy3.png"),
 		Enemy4: new createjs.Bitmap("assets/enemy4.png"),
 		BeamEnemy: new createjs.Bitmap("assets/BeamEnemy.png"),
+		MissileEnemy: new createjs.Bitmap("assets/MissileEnemy.png"),
 	};
 	var enemyExplosions = {
 		Enemy: 1,
@@ -185,6 +186,7 @@ function init(){
 		Enemy3: 2,
 		Enemy4: 5,
 		BeamEnemy: 10,
+		MissileEnemy: 10,
 	};
 
 	game.addEnemyEvent = function(e){
@@ -232,20 +234,50 @@ function init(){
 			}
 		}
 	}
+
+	var missileBitmap = new createjs.Bitmap("assets/Missile.png");
+
 	game.addBulletEvent = function(b){
-		var shape = new createjs.Shape();
-		shape.graphics.beginFill(b.team == 0 ? "#ff0000" : "#ffff00").drawRect(-5, -2, 5, 2);
+		var shape = null
+		if(b instanceof Missile){
+			shape = new createjs.Container();
+			var bm = missileBitmap.clone();
+			var bounds = bm.getBounds();
+			bm.x = -(bounds.width) / 2;
+			bm.y = -(bounds.height) / 2;
+			shape.addChild(bm);
+			var trail = new createjs.Shape();
+			trail.graphics.beginStroke("#7f7f7f").setStrokeStyle(2);
+			effectContainer.addChild(trail);
+		}
+		else{
+			shape = new createjs.Shape();
+			shape.graphics.beginFill(b.team == 0 ? "#ff0000" : "#ffff00").drawRect(-5, -2, 5, 2);
+		}
 		effectContainer.addChild(shape);
 		b.onUpdate = function(dt){
 			shape.x = this.x;
 			shape.y = this.y;
-			shape.rotation = this.angle  * 360 / 2 / Math.PI;
+			shape.rotation = (b instanceof Missile ? this.angle + Math.PI / 2 : this.angle) * 360 / 2 / Math.PI;
+
+			// Update missile smoke trails
+			if(b instanceof Missile && Math.floor(game.global_time / 0.2) !== Math.floor((game.global_time + dt) / 0.2))
+				trail.graphics.lineTo(this.x, this.y);
 		}
 		b.onDelete = function(){
 			effectContainer.removeChild(shape);
+
+			// Make missile smoke trails disappear over time
+			if(trail !== undefined)
+				trail.on("tick", function(evt){
+					trail.alpha -= 0.05;
+					if(trail.alpha <= 0)
+						effectContainer.removeChild(trail);
+				});
+
 			if(this.vanished)
 				return;
-			var sprite = hitSpriteTemplate.clone();
+			var sprite = (b instanceof Missile ? explosionSpriteTemplate : hitSpriteTemplate).clone();
 			sprite.x = this.x;
 			sprite.y = this.y;
 			// Start playing hit animation

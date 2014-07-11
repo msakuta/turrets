@@ -534,9 +534,45 @@ Bullet.prototype.onDelete = function(){
 	// Default does nothing
 }
 
+/// \brief A guided missile
+function Missile(game,x,y,vx,vy,angle,owner){
+	Bullet.apply(this, arguments);
+	this.seekTime = 8;
+	this.speed = 75;
+}
+inherit(Missile, Bullet);
+
+Missile.prototype.update = function(dt){
+	var ret = Bullet.prototype.update.call(this, dt);
+	if(0 < this.seekTime)
+		this.seekTime--;
+	else{
+		var enemies = this.team == 0 ? this.game.enemies : this.game.towers;
+		var weakest = null;
+		var weakestHealth = 1e6;
+		var searchRange = 300;
+		for(var i = 0; i < enemies.length; i++){
+			var e = enemies[i];
+			if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < searchRange * searchRange){
+				if(0 < e.health && e.health < weakestHealth){
+					weakest = e;
+					weakestHealth = e.health;
+				}
+			}
+		}
+		if(weakest !== null){
+			this.target = weakest;
+			this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), Math.PI * 0.5 * dt);
+			this.vx = this.speed * Math.cos(this.angle);
+			this.vy = this.speed * Math.sin(this.angle);
+		}
+	}
+	return ret;
+}
+
 /// \brief Class representing an enemy unit.
 function Enemy(game,x,y){
-	Entity.call(this,game,x,y);
+	Entity.apply(this, arguments);
 	this.game = game;
 	this.x = x;
 	this.y = y;
@@ -628,6 +664,13 @@ function Enemy3(game,x,y){
 }
 inherit(Enemy3, Enemy);
 
+Enemy3.prototype.shoot = function(dt){
+	var spd = 100.;
+	var angle = this.angle + this.game.rng.next() * Math.PI * 0.2;
+	var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+	this.game.addBullet(new Bullet(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this));
+}
+
 Enemy3.prototype.update = function(dt){
 
 	if(this.target === undefined && this.game.towers.length !== 0){
@@ -654,10 +697,7 @@ Enemy3.prototype.update = function(dt){
 	this.y += this.vy * dt;
 
 	if(this.game.rng.next() < this.shootFrequency()){
-		var spd = 100.;
-		var angle = this.angle + this.game.rng.next() * Math.PI * 0.2;
-		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
-		this.game.addBullet(new Bullet(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this));
+		this.shoot();
 	}
 	this.onUpdate(dt);
 	return true;
@@ -671,12 +711,23 @@ function Enemy4(game,x,y){
 	this.health = this.maxHealth();
 	this.radius = 16;
 	this.credit = Math.ceil(game.rng.next() * 500);
-	this.shootFrequency = function(){return 0.2;};
 	this.angle = 0;
 	this.target = null;
 	this.cooldown = 15;
 }
 inherit(Enemy4, Enemy);
+
+Enemy4.prototype.shoot = function(dt){
+	var spd = 100.;
+	var angle = this.angle + (this.game.rng.next() - 0.5) * Math.PI * 0.05;
+	var mat = this.getRot(angle);
+	for(var i = -1; i <= 1; i += 2){
+		var pos = mattvp(mat, [0, i * 6]);
+		this.game.addBullet(new Bullet(this.game, this.x + pos[0], this.y + pos[1],
+			spd * mat[0], spd * mat[1], angle, this));
+	}
+	this.cooldown = 15;
+}
 
 Enemy4.prototype.update = function(dt){
 
@@ -711,15 +762,7 @@ Enemy4.prototype.update = function(dt){
 		this.cooldown--;
 
 	if(this.target !== null && this.cooldown === 0){
-		var spd = 100.;
-		var angle = this.angle + (this.game.rng.next() - 0.5) * Math.PI * 0.05;
-		var mat = this.getRot(angle);
-		for(var i = -1; i <= 1; i += 2){
-			var pos = mattvp(mat, [0, i * 6]);
-			this.game.addBullet(new Bullet(this.game, this.x + pos[0], this.y + pos[1],
-				spd * mat[0], spd * mat[1], angle, this));
-		}
-		this.cooldown = 15;
+		this.shoot();
 	}
 	this.onUpdate(dt);
 	return true;
@@ -727,12 +770,11 @@ Enemy4.prototype.update = function(dt){
 
 /// \brief Tier 4 enemy with higher health and credit
 function BeamEnemy(game,x,y){
-	Enemy.apply(this, arguments);
+	Enemy4.apply(this, arguments);
 	this.maxHealth = function(){return 2500;}
 	this.health = this.maxHealth();
 	this.radius = 24;
 	this.credit = Math.ceil(game.rng.next() * 500);
-	this.shootFrequency = function(){return 0.2;};
 	this.angle = 0;
 	this.target = null;
 	this.cooldown = 15;
@@ -804,6 +846,36 @@ BeamEnemy.prototype.update = function(dt){
 	return true;
 }
 
+/// \brief Missile launcher enemy
+function MissileEnemy(game,x,y){
+	Enemy4.apply(this, arguments);
+	this.maxHealth = function(){return 3500;}
+	this.health = this.maxHealth();
+	this.radius = 24;
+	this.credit = Math.ceil(game.rng.next() * 2500);
+	this.angle = 0;
+	this.target = null;
+	this.cooldown = 30;
+	this.shootPhase = 0;
+}
+inherit(MissileEnemy, Enemy4);
+
+MissileEnemy.prototype.shoot = function(dt){
+	var spd = 75.;
+	for(var i = -2; i <= 2; i++){
+		if(i == 0)
+			continue;
+		var angle = this.angle + i * Math.PI * 0.05;
+		var mat = this.getRot(angle);
+		var pos = mattvp(mat, [-Math.abs(i) * 2, i * 6]);
+		var m = new Missile(this.game, this.x + pos[0], this.y + pos[1],
+			spd * mat[0], spd * mat[1], angle, this)
+		m.damage = 7;
+		this.game.addBullet(m);
+	}
+	this.cooldown = 45;
+}
+
 
 function Game(width, height){
 	this.width = width;
@@ -838,6 +910,7 @@ Game.prototype.enemyTypes = [
 	{type: Enemy3, waves: 10, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
 	{type: Enemy4, waves: 20, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
 	{type: BeamEnemy, waves: 30, freq: function(f){return (f * 5000 + 10000) / 20000000;}},
+	{type: MissileEnemy, waves: 40, freq: function(f){return (f * 5000 + 10000) / 20000000;}},
 ];
 
 Game.prototype.init = function(){
