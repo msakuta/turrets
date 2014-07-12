@@ -436,7 +436,7 @@ BeamTower.prototype.cost = function(){
 }
 
 BeamTower.prototype.getDamage = function(){
-	return 3 + this.level * 0.5;
+	return 5 + this.level * 1.5;
 }
 
 BeamTower.prototype.shoot = function(){
