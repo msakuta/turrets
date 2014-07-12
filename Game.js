@@ -105,6 +105,11 @@ Entity.prototype.getDPS = function(frameTime){
 	return null;
 }
 
+Entity.prototype.measureDistance = function(other){
+	return Math.sqrt((this.x - other.x) * (this.x - other.x) + (this.y - other.y) * (this.y - other.y));
+}
+
+
 function Tower(game,x,y){
 	Entity.call(this,game,x,y);
 	this.angle = 0;
@@ -289,10 +294,6 @@ Entity.prototype.getPos = function(){
 
 Tower.prototype.print = function(){
 	return "(" + this.x + ", " + this.y + ")";
-}
-
-Tower.prototype.measureDistance = function(other){
-	return Math.sqrt((this.x - other.x) * (this.x - other.x) + (this.y - other.y) * (this.y - other.y));
 }
 
 Tower.prototype.getRange = function(){
@@ -671,20 +672,20 @@ Missile.prototype.update = function(dt){
 	// Search for target if already have none
 	if(this.target === null || this.target.health <= 0){
 		var enemies = this.team == 0 ? this.game.enemies : this.game.towers;
-		var weakest = null;
-		var weakestHealth = 1e6;
-		var searchRange = 300;
+		var nearest = null;
+		var nearestSDist = 300 * 300;
+		var predPos = [this.x + this.speed / this.rotateSpeed * Math.cos(this.angle),
+			this.y + this.speed / this.rotateSpeed * Math.sin(this.angle)];
 		for(var i = 0; i < enemies.length; i++){
 			var e = enemies[i];
-			if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < searchRange * searchRange){
-				if(0 < e.health && e.health < weakestHealth){
-					weakest = e;
-					weakestHealth = e.health;
-				}
+			var dv = [e.x - predPos[0], e.y - predPos[1]];
+			if(0 < e.health && dv[0] * dv[0] + dv[1] * dv[1] < nearestSDist){
+				nearest = e;
+				nearestSDist = dv[0] * dv[0] + dv[1] * dv[1];
 			}
 		}
-		if(weakest !== null)
-			this.target = weakest;
+		if(nearest !== null)
+			this.target = nearest;
 	}
 
 	// Guide toward target
