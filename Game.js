@@ -453,30 +453,33 @@ BeamTower.prototype.getDPS = function(frameTime){
 BeamTower.prototype.update = function(dt){
 	if(!Tower.prototype.update.call(this, dt))
 		return false;
-	var spd = 100;
-	var bullets = Math.floor(5 + this.level / 2);
 	if(0 < this.shootPhase){
-		var spd = 100.;
-		var angle = this.angle;
-		var mat = this.getRot(angle);
-		// The beam penetrates through all enemies (good against crowd)
-		for(var j = 0; j < this.game.enemies.length; j++){
-			var e = this.game.enemies[j];
-			// Distance of the target from the beam axis
-			var dotx = (e.x - this.x) * mat[2] + (e.y - this.y) * mat[3];
-			// Position of the target along the beam axis
-			var doty = (e.x - this.x) * mat[0] + (e.y - this.y) * mat[1];
-			// Check intersection of the beam with the target
-			if(Math.abs(dotx) < e.radius + 10 && 0 <= doty && doty < this.beamLength + e.radius){
-				this.damage += this.getDamage();
-				if(e.receiveDamage(this.getDamage())){
-					this.onKill(e);
-				}
-			}
-		}
+		this.shootBeam(dt);
 		this.shootPhase--;
 	}
 	return true;
+}
+
+BeamTower.prototype.shootBeam = function(dt){
+	var enemies = this instanceof BeamTower ? this.game.enemies : this.game.towers;
+	var angle = this.angle;
+	var mat = this.getRot(angle);
+	// The beam penetrates through all enemies (good against crowd)
+	for(var j = 0; j < enemies.length; j++){
+		var e = enemies[j];
+		// Distance of the target from the beam axis
+		var dotx = (e.x - this.x) * mat[2] + (e.y - this.y) * mat[3];
+		// Position of the target along the beam axis
+		var doty = (e.x - this.x) * mat[0] + (e.y - this.y) * mat[1];
+		// Check intersection of the beam with the target
+		if(Math.abs(dotx) < e.radius + 10 && 0 <= doty && doty < this.beamLength + e.radius){
+			this.damage += this.getDamage();
+			this.game.onBeamHit(e.x, e.y);
+			if(e.receiveDamage(this.getDamage())){
+				this.onKill(e);
+			}
+		}
+	}
 }
 
 
@@ -785,6 +788,8 @@ inherit(BeamEnemy, Enemy4);
 BeamEnemy.prototype.beamLength = 400;
 BeamEnemy.prototype.beamWidth = 8;
 
+BeamEnemy.prototype.getDamage = function(){return 0.2;}
+
 BeamEnemy.prototype.update = function(dt){
 
 	if(this.target === null && this.game.towers.length !== 0){
@@ -822,24 +827,7 @@ BeamEnemy.prototype.update = function(dt){
 		this.cooldown = 90;
 	}
 	if(0 < this.shootPhase){
-		var spd = 100.;
-		var angle = this.angle;
-		var mat = this.getRot(angle);
-		// The beam penetrates through all towers (it may be too strong)
-		for(var j = 0; j < this.game.towers.length; j++){
-			var e = this.game.towers[j];
-			// Distance of the target from the beam axis
-			var dotx = (e.x - this.x) * mat[2] + (e.y - this.y) * mat[3];
-			// Position of the target along the beam axis
-			var doty = (e.x - this.x) * mat[0] + (e.y - this.y) * mat[1];
-			// Check intersection of the beam with the target
-			if(Math.abs(dotx) < e.radius + 10 && 0 <= doty && doty < this.beamLength + e.radius){
-				this.damage += 0.2;
-				if(e.receiveDamage(0.2)){
-					this.onKill(e);
-				}
-			}
-		}
+		BeamTower.prototype.shootBeam.call(this, dt);
 		this.shootPhase--;
 	}
 	this.onUpdate(dt);
@@ -1222,4 +1210,7 @@ Game.prototype.onInit = function(){
 }
 
 Game.prototype.onStageClear = function(){
+}
+
+Game.prototype.onBeamHit = function(x,y){
 }

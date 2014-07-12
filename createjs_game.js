@@ -337,6 +337,24 @@ function init(){
 		effectContainer.addChild(healBeam);
 	}
 
+	game.onBeamHit = function(x,y){
+		if(game.rng.nexti() % 3 !== 0)
+			return;
+		var sprite = beamHitSpriteTemplate.clone();
+		sprite.x = x;
+		sprite.y = y;
+		sprite.x += (game.rng.next() + game.rng.next() - 1.) * 10;
+		sprite.y += (game.rng.next() + game.rng.next() - 1.) * 10;
+		// Start playing explosion animation
+		sprite.gotoAndPlay("explosion");
+		// Make the effect disappear when it finishes playing
+		sprite.addEventListener("animationend", function(event){
+			event.target.stop();
+			effectContainer.removeChild(event.target);
+		});
+		effectContainer.addChild(sprite);
+	}
+
 	stage = new createjs.Stage("scratch");
 	stage.enableMouseOver();
 	stage.addChild(backImage);
@@ -569,6 +587,18 @@ function init(){
 
 	// create a Sprite instance to display and play back the sprite sheet:
 	hitSpriteTemplate = new createjs.Sprite(hitSpriteSheet);
+
+	// create spritesheet for Bullet hit effect.
+	var beamHitSpriteSheet = new createjs.SpriteSheet({
+		images: ["assets/explode_blue.png"],
+		frames: {width: 16, height: 16, regX: 8, regY: 8},
+		animations: {
+			explosion: [0, 6],
+		}
+	});
+
+	// create a Sprite instance to display and play back the sprite sheet:
+	beamHitSpriteTemplate = new createjs.Sprite(beamHitSpriteSheet);
 
 	createjs.Ticker.addEventListener("tick", tick);
 
