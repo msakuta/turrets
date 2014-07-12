@@ -180,6 +180,8 @@ function init(){
 		Enemy4: new createjs.Bitmap("assets/enemy4.png"),
 		BeamEnemy: new createjs.Bitmap("assets/BeamEnemy.png"),
 		MissileEnemy: new createjs.Bitmap("assets/MissileEnemy.png"),
+		BattleShipEnemy: new createjs.Bitmap("assets/BattleShip.png"),
+		BattleShipTurret: new createjs.Bitmap("assets/BattleShipTurret.png"),
 	};
 	var enemyExplosions = {
 		Enemy: 1,
@@ -188,6 +190,7 @@ function init(){
 		Enemy4: 5,
 		BeamEnemy: 10,
 		MissileEnemy: 10,
+		BattleShipEnemy: 20,
 	};
 
 	game.addEnemyEvent = function(e){
@@ -197,6 +200,17 @@ function init(){
 		bm.x = -(bounds.width) / 2;
 		bm.y = -(bounds.height) / 2;
 		graph.addChild(bm);
+		if(e instanceof BattleShipEnemy){
+			for(var i = 0; i < e.turrets.length; i++){
+				var tc = new createjs.Container();
+				var tbm = enemyBitmaps[e.turrets[i].constructor.name].clone();
+				tbm.x = -tbm.getBounds().width / 2;
+				tbm.y = -tbm.getBounds().height / 2;
+				tc.addChild(tbm);
+				graph.addChild(tc);
+				e.turrets[i].graphic = tc;
+			}
+		}
 		enemyContainer.addChild(graph);
 		var beamShape = null;
 		e.onUpdate = function(dt){
@@ -212,6 +226,14 @@ function init(){
 			}
 			else if(beamShape !== null)
 				beamShape.visible = false;
+			if(e instanceof BattleShipEnemy){
+				for(var i = 0; i < e.turrets.length; i++){
+					var tbm = e.turrets[i].graphic;
+					tbm.rotation = e.turrets[i].angle * 360 / 2 / Math.PI;
+					tbm.x = e.turrets[i].y;
+					tbm.y = -e.turrets[i].x;
+				}
+			}
 		}
 		e.onDelete = function(){
 			enemyContainer.removeChild(graph);
@@ -221,8 +243,8 @@ function init(){
 				sprite.x = this.x;
 				sprite.y = this.y;
 				if(1 < effectCount){
-					sprite.x += (game.rng.next() + game.rng.next() - 0.5) * e.radius;
-					sprite.y += (game.rng.next() + game.rng.next() - 0.5) * e.radius;
+					sprite.x += (game.rng.next() + game.rng.next() - 1) * e.radius;
+					sprite.y += (game.rng.next() + game.rng.next() - 1) * e.radius;
 				}
 				// Start playing explosion animation
 				sprite.gotoAndPlay("explosion");

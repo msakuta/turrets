@@ -4,6 +4,14 @@
 // but we could write this script independent of running environment.
 var global = this;
 
+function vecadd(v1,v2){
+	return [v1[0] + v2[0], v1[1] + v2[1]];
+}
+
+function vecsub(v1,v2){
+	return [v1[0] - v2[0], v1[1] - v2[1]];
+}
+
 // Utility 2D matrix functions
 function matvp(m,v){ // Matrix Vector product
 	return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]];
@@ -608,7 +616,9 @@ Bullet.prototype.update = function(dt){
 		}
 	}
 	this.onUpdate(dt);
-	if(0 < this.x && this.x < this.game.width && 0 < this.y && this.y < this.game.height)
+	// Bullets can live outside the border
+	if(-this.game.width * 0.5 < this.x && this.x < 1.5 * this.game.width &&
+	   -this.game.height * 0.5 < this.y && this.y < 1.5 * this.game.height)
 		return 1;
 	else{
 		// Hitting edge won't trigger bullet hit effect
@@ -827,6 +837,8 @@ function Enemy4(game,x,y){
 }
 inherit(Enemy4, Enemy);
 
+Enemy4.prototype.rotateSpeed = Math.PI * 0.1;
+
 Enemy4.prototype.shoot = function(dt){
 	var spd = 100.;
 	var angle = this.angle + (this.game.rng.next() - 0.5) * Math.PI * 0.05;
@@ -856,7 +868,7 @@ Enemy4.prototype.update = function(dt){
 			dvlen -= 10 * rspeed + 100;
 			this.vx += (dv[0] * dvlen) * 0.1 * dt;
 			this.vy += (dv[1] * dvlen) * 0.1 * dt;
-			this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), Math.PI * 0.1);
+			this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), this.rotateSpeed);
 		}
 	}
 	else{
@@ -971,6 +983,108 @@ MissileEnemy.prototype.shoot = function(dt){
 	this.cooldown = 45;
 }
 
+/// \brief Missile launcher enemy
+function BattleShipEnemy(game,x,y){
+	Enemy.apply(this, arguments);
+	this.maxHealth = function(){return 50000;}
+	this.health = this.maxHealth();
+	this.radius = 64;
+	this.credit = Math.ceil(game.rng.next() * 12500);
+	this.angle = 0;
+	this.target = null;
+	this.cooldown = 30;
+	this.shootPhase = 0;
+	function BattleShipTurret(owner, x, y){
+		Entity.apply(this, arguments);
+		this.owner = owner;
+		this.x = x;
+		this.y = y;
+		this.angle = 0;
+		this.team = 1;
+		this.target = null;
+		this.cooldown = 15;
+	}
+	inherit(BattleShipTurret, Entity);
+	BattleShipTurret.prototype.shoot = function(dt){
+		var spd = 100.;
+		var angle = this.angle + (game.rng.next() - 0.5) * Math.PI * 0.05;
+		var baseMat = this.owner.getRot(this.owner.angle);
+		var basePos = vecadd(mattvp(baseMat, [this.x, this.y]), this.owner.getPos());
+		var mat = this.getRot(angle);
+		var jointAngle = this.owner.angle + this.angle;
+		var jointMat = this.owner.getRot(jointAngle);
+		for(var i = -1; i <= 1; i += 2){
+			var pos = vecadd(mattvp(jointMat, [0, i * 6]), basePos);
+			var b = new Bullet(game, pos[0], pos[1],
+				spd * jointMat[0], spd * jointMat[1], jointAngle, this);
+			b.damage = 5;
+			game.addBullet(b);
+		}
+		this.cooldown = 10;
+	}
+	BattleShipTurret.prototype.update = function(dt){
+		if(this.target === null && game.towers.length !== 0){
+			this.target = game.towers[game.rng.nexti() % game.towers.length];
+		}
+
+		if(this.target !== null && 0 < this.target.health){
+			var baseMat = this.owner.getRot(this.owner.angle);
+			var basePos = vecadd(mattvp(baseMat, [this.x, this.y]), this.owner.getPos());
+			var dv = vecsub(this.target.getPos(), basePos);
+			var dvlen = Math.sqrt(dv[0] * dv[0] + dv[1] * dv[1]);
+			if(0 < dvlen){
+				this.angle = rapproach(this.angle, Math.atan2(dv[1], dv[0]) - this.owner.angle, Math.PI * 0.1);
+			}
+		}
+		if(0 < this.cooldown)
+			this.cooldown--;
+
+		if(this.target !== null && this.cooldown === 0){
+			this.shoot();
+		}
+	}
+	this.turrets = [
+		new BattleShipTurret(this, 40, 0),
+		new BattleShipTurret(this, 15, 0),
+		new BattleShipTurret(this, -35, 0),
+	];
+}
+inherit(BattleShipEnemy, Enemy);
+
+BattleShipEnemy.prototype.rotateSpeed = Math.PI * 0.01;
+
+BattleShipEnemy.prototype.update = function(dt){
+
+	if(this.target === null && this.game.towers.length !== 0){
+		this.target = this.game.towers[this.game.rng.nexti() % this.game.towers.length];
+	}
+
+	if(this.target !== null && 0 < this.target.health){
+		var dv = [this.target.x - this.x, this.target.y - this.y];
+		var dvlen = Math.sqrt(dv[0] * dv[0] + dv[1] * dv[1]);
+		if(0 < dvlen)
+			this.angle = rapproach(this.angle, Math.atan2(dv[1], dv[0]) + (dvlen < 200) * Math.PI / 2, this.rotateSpeed);
+		var mat = this.getRot(this.angle);
+		this.vx = 5 * mat[0];
+		this.vy = 5 * mat[1];
+	}
+	else{
+		this.target = null;
+		this.vx *= 0.9;
+		this.vy *= 0.9;
+	}
+
+	this.x += this.vx * dt;
+	this.y += this.vy * dt;
+
+	for(var i = 0; i < this.turrets.length; i++)
+		this.turrets[i].update(dt);
+
+	this.onUpdate(dt);
+
+	return true;
+}
+
 
 function Game(width, height){
 	this.width = width;
@@ -1006,6 +1120,7 @@ Game.prototype.enemyTypes = [
 	{type: Enemy4, waves: 20, freq: function(f){return (f * 5000 + 10000) / 10000000;}},
 	{type: BeamEnemy, waves: 30, freq: function(f){return (f * 5000 + 10000) / 20000000;}},
 	{type: MissileEnemy, waves: 40, freq: function(f){return (f * 5000 + 10000) / 20000000;}},
+	{type: BattleShipEnemy, waves: 50, freq: function(f){return (f * 5000 + 10000) / 50000000;}},
 ];
 
 Game.prototype.init = function(){
