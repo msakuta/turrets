@@ -261,7 +261,7 @@ function init(){
 	var missileBitmap = new createjs.Bitmap("assets/Missile.png");
 
 	game.addBulletEvent = function(b){
-		var shape = null
+		var shape = null;
 		if(b instanceof Missile){
 			shape = new createjs.Container();
 			var bm = missileBitmap.clone();
@@ -269,34 +269,53 @@ function init(){
 			bm.x = -(bounds.width) / 2;
 			bm.y = -(bounds.height) / 2;
 			shape.addChild(bm);
-			var trail = new createjs.Shape();
-			trail.graphics.beginStroke(b.owner instanceof Tower ? "#7f3f7f" : "#7f7f7f").setStrokeStyle(2);
-			effectContainer.addChild(trail);
+			var trail;
+			var trailCounter = 0;
+			var trailPos = [b.x, b.y];
+			var beginTrail = function(){
+				trail = new createjs.Shape();
+				trail.graphics.beginStroke(b.owner instanceof Tower ? "#7f3f7f" : "#7f7f7f")
+					.setStrokeStyle(2).mt(trailPos[0], trailPos[1]);
+				effectContainer.addChild(trail);
+				trailCounter = 0;
+			}
+			beginTrail();
 		}
 		else{
 			shape = new createjs.Shape();
 			shape.graphics.beginFill(b.team == 0 ? "#ff0000" : "#ffff00").drawRect(-5, -2, 5, 2);
 		}
 		effectContainer.addChild(shape);
+
+		// Local function to make missile smoke trails disappear over time
+		var endTrail = function(){
+			if(trail !== undefined)
+				trail.on("tick", function(evt){
+					evt.currentTarget.alpha -= 0.05;
+					if(evt.currentTarget.alpha <= 0)
+						effectContainer.removeChild(evt.currentTarget);
+				});
+		}
+
 		b.onUpdate = function(dt){
 			shape.x = this.x;
 			shape.y = this.y;
 			shape.rotation = (b instanceof Missile ? this.angle + Math.PI / 2 : this.angle) * 360 / 2 / Math.PI;
 
 			// Update missile smoke trails
-			if(b instanceof Missile && Math.floor(game.global_time / 0.2) !== Math.floor((game.global_time + dt) / 0.2))
+			if(b instanceof Missile && Math.floor(game.global_time / 0.2) !== Math.floor((game.global_time + dt) / 0.2)){
+				if(10 < trailCounter++){
+					endTrail();
+					beginTrail();
+				}
 				trail.graphics.lineTo(this.x, this.y);
+				trailPos = [this.x, this.y];
+			}
 		}
 		b.onDelete = function(){
 			effectContainer.removeChild(shape);
 
-			// Make missile smoke trails disappear over time
-			if(trail !== undefined)
-				trail.on("tick", function(evt){
-					trail.alpha -= 0.05;
-					if(trail.alpha <= 0)
-						effectContainer.removeChild(trail);
-				});
+			endTrail();
 
 			if(this.vanished)
 				return;
