@@ -570,10 +570,10 @@ MissileTower.prototype.shoot = function(){
 	for(var i = -2; i <= 2; i++){
 		if(i === 0)
 			continue;
-		var angle = this.angle + i * Math.PI / 40.;
-		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
-		var ofs = mattvp(mat, [0, i * 5]);
-		var b = new Missile(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this);
+		var angle = this.angle + i * Math.PI * 0.05;
+		var mat = this.getRot(angle);
+		var pos = mattvp(mat, [-Math.abs(i) * 2 + 10, i * 6]);
+		var b = new Missile(this.game, this.x + pos[0], this.y + pos[1], spd * mat[0], spd * mat[1], angle, this);
 		b.damage = this.getDamage();
 		b.target = this.target;
 		b.speed = 100;
