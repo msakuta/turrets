@@ -96,6 +96,15 @@ function start(){
 		return beamShape;
 	}
 
+	function formatVal(v, digits){
+		if(1e6 * Math.pow(10, digits - 1) < v)
+			return Math.round(v / 1e6) + "M";
+		else if(1e3 * Math.pow(10, digits - 1) < v)
+			return Math.round(v / 1e3) + "k";
+		else
+			return Math.round(v);
+	}
+
 	game.addTowerEvent = function(t){
 		var graph = new createjs.Container();
 
@@ -200,10 +209,10 @@ function start(){
 			graph.y = this.y;
 			if(tip.visible){
 				tiptexts[0].text = "Kills: " + this.kills;
-				tiptexts[1].text = "Damage: " + Math.round(this.damage);
+				tiptexts[1].text = "Damage: " + formatVal(this.damage, 3);
 				tiptexts[2].text = "Health: " + Math.ceil(this.health) + "/" + this.maxHealth();
 				tiptexts[3].text = "Level: " + this.level;
-				tiptexts[4].text = "XP: " + Math.ceil(this.xp) + "/" + this.maxXp();
+				tiptexts[4].text = "XP: " + formatVal(this.xp, 3) + "/" + formatVal(this.maxXp(), 3);
 				tiptexts[5].text = "Range: " + (this.getRange() ? this.getRange() : "none");
 				tiptexts[6].text = "DPS: " + (Math.ceil(this.getDPS(frameTime) * 10) / 10 || "none");
 				if(healthBar.currentValue != t.health){
@@ -493,8 +502,8 @@ function start(){
 	statusPanelFrame.alpha = 0.5;
 	statusPanel.addChild(statusPanelFrame);
 	var textDefs = [
-		function(evt){ evt.currentTarget.text = "Score: " + game.score; },
-		function(evt){ evt.currentTarget.text = "Credit: " + game.credit; },
+		function(evt){ evt.currentTarget.text = "Score: " + formatVal(game.score, 5); },
+		function(evt){ evt.currentTarget.text = "Credit: " + formatVal(game.credit, 5); },
 		function(evt){ evt.currentTarget.text = "Stage: " + game.stage; },
 	];
 	for(var j = 0; j < textDefs.length; j++){
@@ -581,7 +590,7 @@ function start(){
 			buyTip.visible = false;
 		});
 		this.on("tick", function(evt){
-			buyTip.texts[1].text = "Cost: " + classType.prototype.cost();
+			buyTip.texts[1].text = "Cost: " + formatVal(classType.prototype.cost(), 5);
 		});
 	}
 	BuyButton.prototype = new createjs.Container();
