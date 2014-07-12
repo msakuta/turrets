@@ -114,6 +114,7 @@ Tower.prototype.maxHealth = function(){
 };
 
 Tower.prototype.rotateSpeed = Math.PI / 10.; // Radians per frame
+Tower.prototype.getShootTolerance = function(){return this.rotateSpeed;}
 
 Tower.prototype.dispName = function(){
 	return "Machine Gun";
@@ -167,9 +168,7 @@ Tower.prototype.update = function(dt){
 	if(this.target != null){
 		var desiredAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
 		this.angle = rapproach(this.angle, desiredAngle, this.rotateSpeed);
-		if(Math.abs(this.angle - desiredAngle) < this.rotateSpeed)
-//		this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-		if(this.cooldown <= 0)
+		if(Math.abs(this.angle - desiredAngle) % (Math.PI * 2) < this.getShootTolerance() && this.cooldown <= 0)
 			this.shoot();
 	}
 
@@ -520,6 +519,104 @@ Bullet.prototype.update = function(dt){
 	}
 }
 
+/// Tower with a shotgun, which shoots spreading bullets
+function MissileTower(game,x,y){
+	Tower.call(this,game,x,y);
+	this.radius = 18;
+	this.cooldown = 15;
+	this.shootPhase = 0;
+}
+inherit(MissileTower, Tower); // Subclass
+
+MissileTower.prototype.rotateSpeed = Math.PI / 30.;
+MissileTower.prototype.getShootTolerance = function(){return Math.PI;}
+MissileTower.prototype.stickiness = 3;
+
+MissileTower.prototype.maxHealth = function(){
+	return Math.ceil(Math.pow(1.2, this.level) * 25);
+}
+
+MissileTower.prototype.maxXp = function(){
+	return Math.ceil(Math.pow(1.5, this.level-1) * 500);
+}
+
+MissileTower.prototype.dispName = function(){
+	return "MissileTower";
+}
+
+MissileTower.prototype.cost = function(){
+	return Math.ceil(Math.pow(1.5, game.towers.length) * 350);
+}
+
+MissileTower.prototype.getDamage = function(){
+	return 30 * Math.pow(1.2, this.level);
+}
+
+MissileTower.prototype.getCooldownTime = function(){
+	return 30;
+}
+
+MissileTower.prototype.shoot = function(){
+	var spd = 100;
+	var bullets = Math.floor(5 + this.level / 2);
+	for(var i = -2; i <= 2; i++){
+		if(i === 0)
+			continue;
+		var angle = this.angle + i * Math.PI / 40.;
+		var mat = [Math.cos(angle), Math.sin(angle), -Math.sin(angle), Math.cos(angle)];
+		var ofs = mattvp(mat, [0, i * 5]);
+		var b = new Missile(this.game, this.x, this.y, spd * mat[0], spd * mat[1], angle, this);
+		b.damage = this.getDamage();
+		b.target = this.target;
+		b.speed = 100;
+		b.rotateSpeed = Math.PI;
+		this.game.addBullet(b);
+	}
+	this.cooldown = this.getCooldownTime();
+}
+
+MissileTower.prototype.getDPS = function(frameTime){
+	return this.getDamage() / this.getCooldownTime() / frameTime;
+}
+
+
+function Bullet(game,x,y,vx,vy,angle,owner){
+	this.game = game;
+	this.x = x;
+	this.y = y;
+	this.vx = vx;
+	this.vy = vy;
+	this.angle = angle;
+	this.owner = owner;
+	this.team = owner.team;
+	this.damage = 1;
+	this.vanished = false;
+}
+
+Bullet.prototype.update = function(dt){
+	this.x += this.vx * dt;
+	this.y += this.vy * dt;
+	var enemies = this.team == 0 ? this.game.enemies : this.game.towers;
+	for(var i = 0; i < enemies.length; i++){
+		var e = enemies[i];
+		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < e.radius * e.radius){
+			this.owner.damage += this.damage;
+			if(e.receiveDamage(this.damage)){
+				this.owner.onKill(e);
+			}
+			return 0;
+		}
+	}
+	this.onUpdate(dt);
+	if(0 < this.x && this.x < this.game.width && 0 < this.y && this.y < this.game.height)
+		return 1;
+	else{
+		// Hitting edge won't trigger bullet hit effect
+		this.vanished = true;
+		return 0;
+	}
+}
+
 Bullet.prototype.draw = function(ctx){
 	var v = this;
 	ctx.translate(v.x, v.y);
@@ -542,14 +639,21 @@ function Missile(game,x,y,vx,vy,angle,owner){
 	Bullet.apply(this, arguments);
 	this.seekTime = 8;
 	this.speed = 75;
+	this.rotateSpeed = Math.PI * 0.5;
+	this.target = null;
 }
 inherit(Missile, Bullet);
 
 Missile.prototype.update = function(dt){
-	var ret = Bullet.prototype.update.call(this, dt);
-	if(0 < this.seekTime)
+	if(!Bullet.prototype.update.call(this, dt))
+		return false;
+	if(0 < this.seekTime){
 		this.seekTime--;
-	else{
+		return true;
+	}
+
+	// Search for target if already have none
+	if(this.target === null || this.target.health <= 0){
 		var enemies = this.team == 0 ? this.game.enemies : this.game.towers;
 		var weakest = null;
 		var weakestHealth = 1e6;
@@ -563,14 +667,17 @@ Missile.prototype.update = function(dt){
 				}
 			}
 		}
-		if(weakest !== null){
+		if(weakest !== null)
 			this.target = weakest;
-			this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), Math.PI * 0.5 * dt);
-			this.vx = this.speed * Math.cos(this.angle);
-			this.vy = this.speed * Math.sin(this.angle);
-		}
 	}
-	return ret;
+
+	// Guide toward target
+	if(this.target !== null && 0 < this.target.health){
+		this.angle = rapproach(this.angle, Math.atan2(this.target.y - this.y, this.target.x - this.x), this.rotateSpeed * dt);
+		this.vx = this.speed * Math.cos(this.angle);
+		this.vy = this.speed * Math.sin(this.angle);
+	}
+	return true;
 }
 
 /// \brief Class representing an enemy unit.

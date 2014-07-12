@@ -26,6 +26,7 @@ function init(){
 	towerBitmaps[Tower] = new createjs.Bitmap("assets/turret.png");
 	towerBitmaps[ShotgunTower] = new createjs.Bitmap("assets/shotgun.png");
 	towerBitmaps[BeamTower] = new createjs.Bitmap("assets/BeamTower.png");
+	towerBitmaps[MissileTower] = new createjs.Bitmap("assets/MissileTower.png");
 
 	function createBeamShape(e, outerColor, innerColor){
 		var beamShape = new createjs.Shape();
@@ -247,7 +248,7 @@ function init(){
 			bm.y = -(bounds.height) / 2;
 			shape.addChild(bm);
 			var trail = new createjs.Shape();
-			trail.graphics.beginStroke("#7f7f7f").setStrokeStyle(2);
+			trail.graphics.beginStroke(b.owner instanceof Tower ? "#7f3f7f" : "#7f7f7f").setStrokeStyle(2);
 			effectContainer.addChild(trail);
 		}
 		else{
@@ -517,6 +518,14 @@ function init(){
 		buyBeamButton.buttonImage.alpha = game.credit < BeamTower.prototype.cost() ? 0.25 : 1.;
 	});
 	overlay.addChild(buyBeamButton);
+
+	var buyMissileButton = new BuyButton(MissileTower, "assets/MissileTower.png");
+	buyMissileButton.x = width - 40;
+	buyMissileButton.y = 130;
+	buyMissileButton.on("tick", function(evt){
+		buyMissileButton.buttonImage.alpha = game.credit < MissileTower.prototype.cost() ? 0.25 : 1.;
+	});
+	overlay.addChild(buyMissileButton);
 
 	var deleteButton = new createjs.Container();
 	deleteShape = new createjs.Shape();
