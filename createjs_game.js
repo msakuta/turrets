@@ -19,6 +19,66 @@ function init(){
 	canvas = document.getElementById("scratch");
 	width = parseInt(canvas.style.width);
 	height = parseInt(canvas.style.height);
+
+	stage = new createjs.Stage("scratch");
+	stage.enableMouseOver();
+
+	var progressContainer = new createjs.Container();
+	var progressBarBack = new createjs.Shape();
+	progressBarBack.graphics.beginFill("#f00").drawRect(0, 0, width / 2, 30);
+	progressContainer.addChild(progressBarBack);
+	var progressBar = new createjs.Shape();
+	progressBar.graphics.beginFill("#0f0").drawRect(0, 0, width / 2, 30);
+	progressBar.scaleX = 0;
+	progressContainer.addChild(progressBar);
+	var progressText = new createjs.Text("Loading...", "bold 24px Helvetica", "#ffffff");
+	progressText.y = - 24;
+	progressContainer.addChild(progressText);
+	progressContainer.x = width / 4;
+	progressContainer.y = (height - 30) / 2;
+	stage.addChild(progressContainer);
+
+	var queue = new createjs.LoadQueue();
+	queue.on("complete", function(){
+		stage.removeChild(progressContainer);
+		start();
+	});
+
+	// Tower images
+	queue.loadFile("assets/healer.png");
+	queue.loadFile("assets/turret.png");
+	queue.loadFile("assets/shotgun.png");
+	queue.loadFile("assets/BeamTower.png");
+	queue.loadFile("assets/MissileTower.png");
+	queue.loadFile("assets/shotgun.png");
+
+	// Enemy images
+	queue.loadFile("assets/enemy.png");
+	queue.loadFile("assets/boss.png");
+	queue.loadFile("assets/enemy3.png");
+	queue.loadFile("assets/enemy4.png");
+	queue.loadFile("assets/BeamEnemy.png");
+	queue.loadFile("assets/MissileEnemy.png");
+	queue.loadFile("assets/BattleShip.png");
+	queue.loadFile("assets/BattleShipTurret.png");
+
+	// Effects
+	queue.loadFile("assets/explode.png");
+	queue.loadFile("assets/explode2.png");
+	queue.loadFile("assets/explode_blue.png");
+
+	// Miscellaneous
+	queue.loadFile("assets/back2.jpg");
+	queue.loadFile("assets/Missile.png");
+	queue.loadFile("assets/trashcan.png");
+
+	queue.on("progress", function(event) {
+		progressBar.scaleX = queue.progress;
+		stage.update();
+	});
+}
+
+function start(){
 	game = new Game(width, height);
 
 	var towerBitmaps = {};
@@ -397,8 +457,6 @@ function init(){
 		effectContainer.addChild(sprite);
 	}
 
-	stage = new createjs.Stage("scratch");
-	stage.enableMouseOver();
 	stage.addChild(backImage);
 
 	towerContainer = new createjs.Container();
@@ -682,7 +740,8 @@ function init(){
 }
 
 function tick(event){
-	game.update(frameTime, function(){});
+	if(game)
+		game.update(frameTime, function(){});
 	stage.update();
 }
 
