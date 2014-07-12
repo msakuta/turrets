@@ -599,6 +599,7 @@ function Bullet(game,x,y,vx,vy,angle,owner){
 	this.team = owner.team;
 	this.damage = 1;
 	this.vanished = false;
+	this.life = 5;
 }
 
 Bullet.prototype.update = function(dt){
@@ -618,8 +619,12 @@ Bullet.prototype.update = function(dt){
 	this.onUpdate(dt);
 	// Bullets can live outside the border
 	if(-this.game.width * 0.5 < this.x && this.x < 1.5 * this.game.width &&
-	   -this.game.height * 0.5 < this.y && this.y < 1.5 * this.game.height)
+	   -this.game.height * 0.5 < this.y && this.y < 1.5 * this.game.height &&
+	   0 < this.life)
+	{
+		this.life -= dt;
 		return 1;
+	}
 	else{
 		// Hitting edge won't trigger bullet hit effect
 		this.vanished = true;
@@ -647,6 +652,7 @@ Bullet.prototype.onDelete = function(){
 /// \brief A guided missile
 function Missile(game,x,y,vx,vy,angle,owner){
 	Bullet.apply(this, arguments);
+	this.life = 10;
 	this.seekTime = 8;
 	this.speed = 75;
 	this.rotateSpeed = Math.PI * 0.5;
