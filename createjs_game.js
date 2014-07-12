@@ -671,11 +671,11 @@ function tick(event){
 function SelectStageButton(level, text){
 	createjs.Container.call(this);
 	var buttonFrame = new createjs.Shape();
-	buttonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 240, 50);
+	buttonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 240, 45);
 	buttonFrame.alpha = 0.5;
 	this.addChild(buttonFrame);
 	var mouseOverFrame = new createjs.Shape();
-	mouseOverFrame.graphics.beginFill("#3f3f3f").beginStroke("#ffffff").drawRect(0, 0, 240, 50);
+	mouseOverFrame.graphics.beginFill("#3f3f3f").beginStroke("#ffffff").drawRect(0, 0, 240, 45);
 	mouseOverFrame.alpha = 0.5;
 	mouseOverFrame.visible = false;
 	this.addChild(mouseOverFrame);
@@ -719,12 +719,12 @@ function showMenu(){
 		label.y = 5;
 		showMenu.menu.addChild(label);
 		showMenu.buttons = [];
-		var captions = ["0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard", "10 - Insane"];
+		var captions = ["0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard", "10 - Insane", "-1 - Endurance mode"];
 		for(var i = 0; i < captions.length; i++){
 			var str = captions[i].split(" ")[0];
 			var but = new SelectStageButton(parseInt(str), captions[i]);
 			but.x = (width - 240) / 2;
-			but.y = 20 + i * 50;
+			but.y = 20 + i * 45;
 			showMenu.menu.addChild(but);
 			showMenu.buttons.push(but);
 		}

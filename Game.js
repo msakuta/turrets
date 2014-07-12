@@ -1226,22 +1226,26 @@ Game.prototype.update = function(dt, autoSaveHandler){
 		return k - 1;
 	}
 
-	if(0 <= this.stage && (Math.abs(this.stage) + 1) * this.stageTime <= this.progress){
-		if(!this.isGameOver() && !this.stageClear){
-			this.stageClear = true;
-			if(this.highScores[this.stage] === undefined || this.highScores[this.stage] < this.score)
-				this.highScores[this.stage] = this.score;
+	if((Math.abs(this.stage) + 1) * this.stageTime <= this.progress){
+		if(this.stage < 0)
+			this.stage--;
+		else{
+			if(!this.isGameOver() && !this.stageClear){
+				this.stageClear = true;
+				if(this.highScores[this.stage] === undefined || this.highScores[this.stage] < this.score)
+					this.highScores[this.stage] = this.score;
 
-			// Autosave: Check for localStorage
-			if(typeof(Storage) !== "undefined"){
-				var serialData = this.serialize();
-				localStorage.setItem("towers", serialData);
-				autoSaveHandler(serialData);
+				// Autosave: Check for localStorage
+				if(typeof(Storage) !== "undefined"){
+					var serialData = this.serialize();
+					localStorage.setItem("towers", serialData);
+					autoSaveHandler(serialData);
+				}
+
+				this.onStageClear();
 			}
-
-			this.onStageClear();
+			return;
 		}
-		return;
 	}
 
 	if(0 != this.towers.length && this.progress % this.waveTime < this.waveTime / 2){
