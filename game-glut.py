@@ -26,6 +26,28 @@ except:
 ERROR: PIL not installed properly.  
         '''
 
+
+def approach(src, dst, delta, wrap):
+	""" Approach src to dst by delta, optionally wrapping around wrap """
+	if src < dst:
+		if dst - src < delta:
+			return dst
+		elif wrap and wrap / 2 < dst - src:
+			ret = src - delta - floor((src - delta) / wrap) * wrap
+			return src < ret and (dst if ret < dst else ret)
+		return src + delta
+	else:
+		if src - dst < delta:
+			return dst
+		elif wrap and wrap / 2 < src - dst:
+			ret = src + delta - floor((src + delta) / wrap) * wrap
+			return ret < src and dst if dst < ret else ret
+		else:return src - delta;
+
+def rapproach(src, dst, delta):
+	""" Rotation approach """
+	return approach(src + pi, dst + pi, delta, pi * 2) - pi
+
 class vec3(object):
 	""" Basic 3-D vector implementation """
 	x = 0
@@ -133,10 +155,95 @@ class Entity(object):
 		self.x = x
 		self.y = y
 
-class Enemy(Entity):
-	""" Class representing an enemy unit. """
+	def measureDistance(self, other):
+		return sqrt((self.x - other.x) * (self.x - other.x) + (self.y - other.y) * (self.y - other.y))
 
 	onUpdate = lambda self,dt: dt
+
+
+class Tower(Entity):
+	idGen = 0
+	target = None
+	rotateSpeed = pi / 10. # Radians per frame
+	stickiness = 1
+
+	def __init__(self,game,x,y):
+		Entity.__init__(self,game,x,y)
+		self.angle = 0
+		self.health = 10
+		self.target = None
+		self.id = Tower.idGen
+		Tower.idGen += 1
+		self.cooldown = 4
+		self.kills = 0
+		self.damage = 0
+		print "init " + str(self.id)
+
+	def maxHealth(self):
+		return ceil(pow(1.2, self.level)) * 10
+
+	def getShootTolerance(self):
+		return self.rotateSpeed
+
+	def dispName(self):
+		return "Machine Gun";
+
+	def shoot(self):
+		pass
+
+	def update(self,dt):
+		enemies = self.game.enemies
+		nearest = None
+		nearestDist = 1e6
+
+		# If this tower is sticky, tolerate before switching target
+		if self.target != None:
+			nearestDist = self.measureDistance(self.target) / self.stickiness
+		for e in enemies:
+			dist = self.measureDistance(e)
+			if dist < nearestDist:
+				nearestDist = dist
+				nearest = e
+
+		if nearest != None:
+			self.target = nearest
+			print "targetted " + str(self.target)
+		if self.target != None and self.target.health <= 0:
+			self.target = None
+
+		if self.target != None:
+			desiredAngle = atan2(self.target.y - self.y, self.target.x - self.x)
+			self.angle = rapproach(self.angle, desiredAngle, self.rotateSpeed)
+			dangle = self.angle - desiredAngle
+			dangle -= floor(dangle / (pi * 2)) * pi * 2
+			if dangle < self.getShootTolerance() and self.cooldown <= 0:
+				self.shoot()
+			#print self.angle
+
+		if 0 < self.cooldown:
+			self.cooldown -= 1
+
+		self.onUpdate(dt)
+
+		return True
+
+	def draw(self):
+		global turretTex
+		glBindTexture(GL_TEXTURE_2D, turretTex)
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glRotated(self.angle * 360 / pi / 2, 0, 0, 1)
+		glScaled(16,16,1)
+		glBegin(GL_QUADS)
+		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
+
+class Enemy(Entity):
+	""" Class representing an enemy unit. """
 
 	def __init__(self,game,x,y):
 		Entity.__init__(self, game, x, y)
@@ -202,7 +309,13 @@ class Game(object):
 			this.highScores = [];
 		"""
 
+		for i in range(3):
+			tower = Tower(self, random() * 200 + 100, random() * 200 + 100)
+			self.towers.append(tower)
+
 	def update(self,dt):
+		for t in self.towers:
+			t.update(dt)
 		for e in self.enemies:
 			e.update(dt)
 		genCount = 1
@@ -226,6 +339,8 @@ class Game(object):
 			self.enemies.append(e)
 
 	def draw(self):
+		for t in self.towers:
+			t.draw()
 		for e in self.enemies:
 			e.draw()
 
@@ -247,7 +362,7 @@ def gettex(path):
 	return tex
 
 def init():
-	global quadratic, enemyTex
+	global quadratic, enemyTex, turretTex
 	glClearColor(0.0, 0.0, 0.0, 0.0)
 	glClearDepth(1.0)
 	glShadeModel(GL_SMOOTH)
@@ -257,6 +372,7 @@ def init():
 #	glEnable(GL_CULL_FACE)
 #	glEnable(GL_DEPTH_TEST)
 	enemyTex = gettex("assets/enemy.png")
+	turretTex = gettex("assets/turret.png")
 
 
 def display():
