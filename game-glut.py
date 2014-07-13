@@ -784,6 +784,107 @@ class Enemy(Entity):
 			Enemy.tex = gettex("assets/enemy.png", Enemy.texParams)
 		return Enemy.texParams
 
+
+class Enemy4(Enemy):
+	""" \brief Tier 4 enemy with higher health and credit """
+	def __init__(self,game,x,y):
+		Enemy.__init__(self,game,x,y)
+		self.health = self.maxHealth
+		self.radius = 16
+		self.credit = ceil(random() * 500)
+		self.angle = 0
+		self.target = None
+		self.cooldown = 15
+
+	maxHealth = property(lambda self: 500)
+
+	rotateSpeed = pi * 0.1
+
+	def shoot(self,dt):
+		spd = 100.
+		angle = self.angle + (random() - 0.5) * pi * 0.05
+		mat = self.getRot(angle)
+		for i in [-1,1]:
+			pos = mattvp(mat, [0, i * 6])
+			self.game.addBullet(Bullet(self.game, self.x + pos[0], self.y + pos[1],
+				spd * mat[0], spd * mat[1], angle, self))
+		self.cooldown = 15
+
+	def update(self,dt):
+
+		if self.target == None and len(self.game.towers) != 0:
+			self.target = self.game.towers[randint(0,len(self.game.towers)-1)]
+
+		if self.target != None and 0 < self.target.health:
+			dv = [self.target.x - self.x, self.target.y - self.y]
+			dvlen = sqrt(dv[0] * dv[0] + dv[1] * dv[1])
+			if 0 < dvlen:
+				dv[0] /= dvlen
+				dv[1] /= dvlen
+				rspeed = dv[0] * self.vx + dv[1] * self.vy
+				# Make the ship stop at distance of 100 from target
+				dvlen -= 10 * rspeed + 100;
+				self.vx += (dv[0] * dvlen) * 0.1 * dt
+				self.vy += (dv[1] * dvlen) * 0.1 * dt
+				self.angle = rapproach(self.angle, atan2(self.target.y - self.y, self.target.x - self.x), self.rotateSpeed)
+		else:
+			self.target = None
+			self.vx *= 0.9
+			self.vy *= 0.9
+
+		self.x += self.vx * dt
+		self.y += self.vy * dt
+
+		if 0 < self.cooldown:
+			self.cooldown -= 1
+
+		if self.target != None and self.cooldown == 0:
+			self.shoot(dt)
+		self.onUpdate(dt)
+		return True
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if Enemy4.tex == None:
+			Enemy4.tex = gettex("assets/enemy4.png", Enemy4.texParams)
+		return Enemy4.texParams
+
+class MissileEnemy(Enemy4):
+	""" \brief Missile launcher enemy """
+	def __init__(self,game,x,y):
+		Enemy4.__init__(self,game,x,y)
+		self.health = self.maxHealth
+		self.radius = 24
+		self.credit = ceil(random() * 2500)
+		self.angle = 0
+		self.target = None
+		self.cooldown = 30
+		self.shootPhase = 0
+
+	maxHealth = property(lambda self: 3500)
+
+	def shoot(self,dt):
+		spd = 75.;
+		for i in [-2,-1,1,2]:
+			angle = self.angle + i * pi * 0.05
+			mat = self.getRot(angle)
+			pos = mattvp(mat, [-abs(i) * 2, i * 6])
+			m = Missile(self.game, self.x + pos[0], self.y + pos[1],
+				spd * mat[0], spd * mat[1], angle, self)
+			m.damage = 7
+			self.game.addBullet(m)
+		self.cooldown = 45
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if MissileEnemy.tex == None:
+			MissileEnemy.tex = gettex("assets/MissileEnemy.png", MissileEnemy.texParams)
+		return MissileEnemy.texParams
+
 class Effect(object):
 	def __init__(self,x,y):
 		self.x = x
@@ -951,6 +1052,14 @@ def drawText(value, x,y):
 	glPopMatrix();
 
 class Game(object):
+	waveTime = 60
+	stageTime = waveTime * 10
+	enemyTypes = [
+		{"type": Enemy, "waves": 0, "freq": lambda f: (f + 2) / 20 if f < 20 else 1 / (f - 20 + 1)},
+		{"type": Enemy4, "waves": 20, "freq": lambda f: (f * 5000 + 10000) / 10000000},
+		{"type": MissileEnemy, "waves": 40, "freq": lambda f: (f * 5000 + 10000) / 20000000},
+	];
+
 	def __init__(self, width, height):
 		self.width = width
 		self.height = height
@@ -1042,26 +1151,33 @@ class Game(object):
 				p *= random()
 			return k - 1
 
-		genCount = poissonRandom(0.3)
+		if 0 != len(self.towers) and fmod(self.progress, self.waveTime) < self.waveTime / 2:
+			for tp in self.enemyTypes:
+				if floor(self.progress / self.waveTime) < tp["waves"]:
+					continue
+				freq = tp["freq"](floor(self.progress / self.waveTime))
+				genCount = poissonRandom(freq)
 
-		for j in range(genCount):
-			edge = randint(0, 3)
-			x = 0
-			y = 0
-			if edge == 0:
-				x = 0
-				y = self.height * random()
-			elif edge == 1:
-				x = self.width
-				y = self.height * random()
-			elif edge == 2:
-				x = self.width * random()
-				y = 0
-			elif edge == 3:
-				x = self.width * random()
-				y = self.height
-			e = Enemy(self, x, y)
-			self.enemies.append(e)
+				for j in range(genCount):
+					edge = randint(0, 3)
+					x = 0
+					y = 0
+					if edge == 0:
+						x = 0
+						y = self.height * random()
+					elif edge == 1:
+						x = self.width
+						y = self.height * random()
+					elif edge == 2:
+						x = self.width * random()
+						y = 0
+					elif edge == 3:
+						x = self.width * random()
+						y = self.height
+					e = tp["type"](self, x, y)
+					self.enemies.append(e)
+
+		self.progress += dt
 
 	def addBullet(self,b):
 		self.bullets.append(b)
@@ -1151,6 +1267,7 @@ class Game(object):
 		text = "Score: %d\n" % self.score
 		text += "Credit: %g\n" % self.credit
 		text += "Stage: %s\n" % str(self.stage)
+		text += "Progress: %g\n" % self.progress
 		drawText(text, 20, self.height - 32)
 		glPopMatrix()
 
