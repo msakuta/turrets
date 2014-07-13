@@ -678,6 +678,8 @@ class Game(object):
 		for i in range(2):
 			tower = MissileTower(self, random() * 200 + 100, random() * 200 + 100)
 			self.towers.append(tower)
+		for t in self.towers:
+			self.separateTower(t)
 
 	def update(self,dt):
 		for t in self.towers:
@@ -776,6 +778,40 @@ class Game(object):
 				self.selectedTower = t
 				break
 
+	def separateTower(self,tower):
+
+		def ensureInStage(tower):
+			if tower.x < 0:
+				tower.x = 0
+			elif self.width < tower.x:
+				tower.x = self.width
+			if tower.y < 0:
+				tower.y = 0
+			elif self.height < tower.y:
+				tower.y = self.height
+
+		ensureInStage(tower)
+
+		repeats = 10 # Try repeat count before giving up resolving all intersections
+		for r in range(repeats):
+			moved = False
+			for t in self.towers:
+				if t == tower:
+					continue
+				dx = tower.x - t.x
+				dy = tower.y - t.y
+				if dx == 0 and dy == 0:
+					dy = 1
+				radiusSum = tower.radius + t.radius
+				if dx * dx + dy * dy < radiusSum * radiusSum:
+					length = sqrt(dx * dx + dy * dy)
+					tower.x = t.x + dx / length * radiusSum
+					tower.y = t.y + dy / length * radiusSum
+					ensureInStage(tower)
+					moved = True
+			if not moved:
+				break;
+
 	def removeTower(self,tower):
 		self.towers.remove(tower)
 		tower.onDelete()
@@ -846,26 +882,22 @@ def mouse(button, state, x, y):
 		mousestate = True
 	else:
 		mousestate = False
-	print "mouse ", mousepos
-	mousepos[0] = x
-	mousepos[1] = windowsize[1] - y
-	game.selectTower(mousepos)
+	if state == GLUT_DOWN:
+		mousepos[0] = x
+		mousepos[1] = windowsize[1] - y
+		game.selectTower(mousepos)
 
 def motion(x, y):
 	global mousepos
-	print "motion: ", mousepos
 	mousepos[0] = x
 	mousepos[1] = windowsize[1] - y
-	game.selectTower(mousepos)
-"""	global phi, theta
-	theta -= mousepos[1] - y
-	if theta < -90:
-		theta = -90
-	if 90 < theta:
-		theta = 90
-	mousepos[1] = y
-	phi -= mousepos[0] - x
-	mousepos[0] = x"""
+	if game.selectedTower == None:
+		game.selectTower(mousepos)
+	if game.selectedTower != None:
+		t = game.selectedTower
+		t.x = mousepos.x
+		t.y = mousepos.y
+		game.separateTower(t)
 
 def keyboard(key, x, y):
 	global dist
@@ -878,7 +910,6 @@ def keyboard(key, x, y):
 
 def reshape (w, h):
 	global windowsize
-	print w, h
 	windowsize = [w, h]
 	glViewport(0, 0, w, h)
 	glMatrixMode(GL_PROJECTION)
