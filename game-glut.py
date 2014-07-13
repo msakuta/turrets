@@ -843,13 +843,13 @@ class Game(object):
 		self.highScores = []
 
 		for i in range(3):
-			tower = Tower(self, random() * 200 + 100, random() * 200 + 100)
+			tower = Tower(self, random() * 200 + 150, random() * 200 + 150)
 			self.towers.append(tower)
 		for i in range(2):
-			tower = MissileTower(self, random() * 200 + 100, random() * 200 + 100)
+			tower = MissileTower(self, random() * 200 + 150, random() * 200 + 150)
 			self.towers.append(tower)
 		for i in range(2):
-			tower = HealerTower(self, random() * 200 + 100, random() * 200 + 100)
+			tower = HealerTower(self, random() * 200 + 150, random() * 200 + 150)
 			self.towers.append(tower)
 		for t in self.towers:
 			self.separateTower(t)
@@ -919,11 +919,23 @@ class Game(object):
 			glDisable(GL_ALPHA_TEST)
 			glLineWidth(1)
 			glTranslated(t.x, t.y, 0)
+			
+			# Show hit radius
 			glColor4f(0,1,1,1)
 			glBegin(GL_LINE_LOOP)
 			for i in range(32):
 				glVertex2d(t.radius * cos(i * pi * 2 / 32), t.radius * sin(i * pi * 2 / 32))
 			glEnd()
+			
+			# Show targeting range if available
+			if t.getRange() != None:
+				r = t.getRange()
+				glBegin(GL_LINE_LOOP)
+				for i in range(32):
+					a = i * pi * 2 / 32
+					glVertex2d(r * cos(a), r * sin(a))
+				glEnd()
+
 			glColor4f(0,0,0,0.5)
 			for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
 				glColor4fv(i[0])
