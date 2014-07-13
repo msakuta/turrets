@@ -180,7 +180,9 @@ class Entity(object):
 
 	def _set_pos(self,v): self.x=v[0], self.y=v[1]
 
-	pos = property(lambda self: [self.x, self.y], _set_pos, None)
+	pos = property(lambda self: vec2(self.x, self.y), _set_pos, None)
+	
+	nextXp = property(lambda self: ceil(1.5 ** self.level * 100));
 
 	def getRot(self,angle):
 		return [cos(angle), sin(angle), -sin(angle), cos(angle)]
@@ -204,7 +206,6 @@ class Tower(Entity):
 	target = None
 	rotateSpeed = pi / 10. # Radians per frame
 	stickiness = 1
-	onKill = lambda self,o: None
 
 	def __init__(self,game,x,y):
 		Entity.__init__(self,game,x,y)
@@ -239,6 +240,12 @@ class Tower(Entity):
 
 	def getCooldownTime(self):
 		return 4
+
+	def getDPS(self,frameTime):
+		return 2 * 1.2 ** self.level / self.getCooldownTime() / frameTime
+	
+	def getRange(self):
+		return None
 
 	def update(self,dt):
 		enemies = self.game.enemies
@@ -292,6 +299,8 @@ class Tower(Entity):
 		glEnd()
 		glPopMatrix()
 
+	def onKill(self,o):
+		self.kills += 1
 
 class MissileTower(Tower):
 	""" Tower launching missiles """
@@ -610,6 +619,21 @@ class TrailEffect(Effect):
 				break
 		glEnd()
 
+def drawText(value, x,y):
+	"""Draw the given text at given 2D position in window """
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	glRasterPos2d(x, y);
+	lines = 0
+	for character in value:
+		if character == '\n':
+			lines += 1
+			glRasterPos2d(x, y-(lines*12))
+		else:
+			glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, ord(character));
+	glPopMatrix();
+
 class Game(object):
 	def __init__(self, width, height):
 		self.width = width
@@ -619,6 +643,7 @@ class Game(object):
 		self.bullets = []
 		self.enemies = []
 		self.effects = []
+		self.selectedTower = None
 		# A flag to defer initialization of game state to enale calling logic to
 		# set event handlers on object creation in deserialization.
 		self.initialized = False
@@ -698,6 +723,45 @@ class Game(object):
 			b.draw()
 		for e in self.effects:
 			e.draw()
+		if self.selectedTower != None:
+			t = self.selectedTower
+			#print "in-radius: " , t
+			glPushMatrix()
+			glDisable(GL_TEXTURE_2D)
+			glDisable(GL_ALPHA_TEST)
+			glLineWidth(1)
+			glTranslated(t.x, t.y, 0)
+			glColor4f(0,1,1,1)
+			glBegin(GL_LINE_LOOP)
+			for i in range(32):
+				glVertex2d(t.radius * cos(i * pi * 2 / 32), t.radius * sin(i * pi * 2 / 32))
+			glEnd()
+			glColor4f(0,0,0,0.5)
+			for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
+				glColor4fv(i[0])
+				glBegin(i[1])
+				glVertex2d(-50, -10)
+				glVertex2d(50, -10)
+				glVertex2d(50, -100)
+				glVertex2d(-50, -100)
+				glEnd()
+			drawText("Kills: %d\n" % t.kills
+					 + "Damage: %d\n" % t.damage
+					 + "Health: %d\n" % t.health
+					 + "Level: %d\n" % t.level
+					 + "XP: %d/%d\n" % (t.xp, t.nextXp)
+					 + "Range: %s\n" % str(t.getRange())
+					 + "DPS: %d\n" % t.getDPS(1. / 60.)
+					 , t.x - 45, t.y - 20)
+			glPopMatrix()
+
+	def selectTower(self,pos):
+		self.selectedTower = None
+		for t in self.towers:
+			dv = t.pos - pos
+			if dv.len() < t.radius:
+				self.selectedTower = t
+				break
 
 	def removeTower(self,tower):
 		self.towers.remove(tower)
@@ -715,7 +779,7 @@ class Game(object):
 		return True
 
 
-game = Game(400, 400)
+game = Game(500, 500)
 
 
 
@@ -760,18 +824,26 @@ def display():
 	#print gc.get_count(), gc.garbage, len(game.enemies), len(game.bullets), len(game.effects)
 
 mousestate = False
-mousepos = [0,0]
+mousepos = vec2(0,0)
+windowsize = [400, 400]
 
 def mouse(button, state, x, y):
+	global mousestate, mousepos
 	if state:
 		mousestate = True
 	else:
 		mousestate = False
+	print "mouse ", mousepos
 	mousepos[0] = x
-	mousepos[1] = y
+	mousepos[1] = windowsize[1] - y
+	game.selectTower(mousepos)
 
 def motion(x, y):
-	pass
+	global mousepos
+	print "motion: ", mousepos
+	mousepos[0] = x
+	mousepos[1] = windowsize[1] - y
+	game.selectTower(mousepos)
 """	global phi, theta
 	theta -= mousepos[1] - y
 	if theta < -90:
@@ -792,10 +864,13 @@ def keyboard(key, x, y):
 		sys.exit(0)
 
 def reshape (w, h):
+	global windowsize
+	print w, h
+	windowsize = [w, h]
 	glViewport(0, 0, w, h)
 	glMatrixMode(GL_PROJECTION)
 	glLoadIdentity()
-	glOrtho(0, 400, 0, 400, -1, 1)
+	glOrtho(0, 500, 0, 500, -1, 1)
 #	glFrustum(-1.0, 1.0, -1.0, 1.0, 1.5, 5000.0)
 	glMatrixMode(GL_MODELVIEW)
 
