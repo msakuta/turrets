@@ -171,6 +171,7 @@ class Entity(object):
 	game = None
 	pos = vec2(0,0)
 	velo = vec2(0,0)
+	angle = 0
 	xp = 0
 	level = 1
 	team = 0
@@ -210,6 +211,23 @@ class Entity(object):
 	onDeath = lambda self: None
 	onDelete = lambda self: None
 
+	def draw(self):
+		texParams = self.getTexture()
+		glBindTexture(GL_TEXTURE_2D, texParams["tex"])
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glEnable(GL_TEXTURE_2D)
+		glEnable(GL_ALPHA_TEST)
+		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
+		glColor3f(1,1,1)
+		glScaled(texParams["size"][0],texParams["size"][1],1)
+		glBegin(GL_QUADS)
+		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
 
 class Tower(Entity):
 	idGen = 0
@@ -333,22 +351,6 @@ class Tower(Entity):
 			Tower.tex = gettex("assets/turret.png", Tower.texParams)
 		return Tower.texParams
 			
-	def draw(self):
-		texParams = self.getTexture()
-		glBindTexture(GL_TEXTURE_2D, texParams["tex"])
-		glPushMatrix()
-		glTranslated(self.x, self.y, 0)
-		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
-		glColor3f(1,1,1)
-		glScaled(texParams["size"][0],texParams["size"][1],1)
-		glBegin(GL_QUADS)
-		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
-		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
-		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
-		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
-		glEnd()
-		glPopMatrix()
-
 	def onKill(self,e):
 		if e.team != 0:
 			self.game.score += e.maxHealth
@@ -461,6 +463,99 @@ class HealerTower(Tower):
 
 	def getRange(self):
 		return ceil((self.level + 10) * 5)
+
+class BeamTower(Tower):
+	""" Tower with a beam cannon which penetrates through enemies """
+	
+	def __init__(self,game,x,y):
+		Tower.__init__(self,game,x,y)
+		self.radius = 18;
+		self.cooldown = 15;
+		self.shootPhase = 0;
+
+	rotateSpeed = pi / 30.
+	stickiness = 3
+	beamLength = 400
+	beamWidth = 8
+
+	maxHealth = property(lambda self: ceil(1.2 ** self.level * 25))
+
+	nextXp = property(lambda self: ceil(1.5 ** (self.level-1) * 500))
+
+	@staticmethod
+	def dispName():
+		return "BeamTower"
+
+	@staticmethod
+	def cost():
+		return ceil(1.5 ** len(game.towers) * 350)
+
+	def getDamage(self):
+		return 5 * 1.2 ** self.level
+
+	def shoot(self):
+		if self.target != None and self.cooldown == 0:
+			self.shootPhase = 45
+			self.cooldown = 90
+
+	def getDPS(self,frameTime):
+		return self.getDamage() * 45 / 90 / frameTime
+
+	def update(self,dt):
+		if not Tower.update(self, dt):
+			return False
+		if 0 < self.shootPhase:
+			self.shootBeam(dt)
+			self.shootPhase -= 1
+		return True
+
+	def shootBeam(self,dt):
+		enemies = self.game.enemies if isinstance(self, BeamTower) else self.game.towers
+		angle = self.angle
+		mat = self.getRot(angle)
+		# The beam penetrates through all enemies (good against crowd)
+		for e in enemies:
+			# Distance of the target from the beam axis
+			dotx = (e.x - self.x) * mat[2] + (e.y - self.y) * mat[3]
+			# Position of the target along the beam axis
+			doty = (e.x - self.x) * mat[0] + (e.y - self.y) * mat[1]
+			# Check intersection of the beam with the target
+			if abs(dotx) < e.radius + 10 and 0 <= doty and doty < self.beamLength + e.radius:
+				self.damage += self.getDamage()
+				self.game.onBeamHit(e.x, e.y)
+				if e.receiveDamage(self.getDamage()):
+					self.onKill(e);
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if BeamTower.tex == None:
+			BeamTower.tex = gettex("assets/BeamTower.png", BeamTower.texParams)
+		return BeamTower.texParams
+	
+	def draw(self):
+		Tower.draw(self)
+		if 0 < self.shootPhase:
+			glPushMatrix()
+			glTranslated(self.x, self.y, 0)
+			glRotated(self.angle * 180 / pi, 0, 0, 1)
+			glScaled(self.beamLength, self.beamWidth * 0.5, 1)
+			glDisable(GL_TEXTURE_2D)
+			glDisable(GL_ALPHA_TEST)
+			glEnable(GL_BLEND)
+			glBegin(GL_QUAD_STRIP)
+			glColor4f(1, 0.5, 1, 0)
+			glVertex2d(0, -1)
+			glVertex2d(1, -1)
+			glColor4f(1, 0.5, 1, 1)
+			glVertex2d(0, 0)
+			glVertex2d(1, 0)
+			glColor4f(1, 0.5, 1, 0)
+			glVertex2d(0, 1)
+			glVertex2d(1, 1)
+			glEnd()
+			glPopMatrix()
 
 class MissileTower(Tower):
 	""" Tower launching missiles """
@@ -651,6 +746,7 @@ class Enemy(Entity):
 		Entity.__init__(self, game, x, y)
 		self.vx = 0
 		self.vy = 0
+		self.angle = pi / 2
 		self.radius = 7.5
 		self.credit = randint(0,5)
 		self.kills = 0
@@ -680,20 +776,13 @@ class Enemy(Entity):
 		self.game.removeEnemy(self)
 		self.game.effects.append(SpriteEffect(self.x, self.y, explo2Tex))
 
-	def draw(self):
-		global enemyTex
-		glBindTexture(GL_TEXTURE_2D, enemyTex)
-		glPushMatrix()
-		glTranslated(self.x, self.y, 0)
-		glScaled(16,16,1)
-		glColor3f(1,1,1)
-		glBegin(GL_QUADS)
-		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
-		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
-		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
-		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
-		glEnd()
-		glPopMatrix()
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if Enemy.tex == None:
+			Enemy.tex = gettex("assets/enemy.png", Enemy.texParams)
+		return Enemy.texParams
 
 class Effect(object):
 	def __init__(self,x,y):
@@ -1111,6 +1200,10 @@ class Game(object):
 	def onHeal(self, target, src):
 		self.effects.append(HealEffect(target, src))
 		
+	def onBeamHit(self, x, y):
+		global exploBlueTex
+		self.effects.append(SpriteEffect(x, y, exploBlueTex))
+
 	def isGameOver(self):
 		return len(self.towers) == 0
 
@@ -1214,24 +1307,19 @@ selectedButton = None
 windowsize = [500, 500]
 
 def init():
-	global quadratic, enemyTex, turretTex, exploTex, explo2Tex
+	global exploTex, explo2Tex, exploBlueTex
 	glClearColor(0.0, 0.0, 0.0, 0.0)
 	glClearDepth(1.0)
 	glShadeModel(GL_SMOOTH)
-	quadratic = gluNewQuadric()
-#	gluQuadricNormals(quadratic, GLU_SMOOTH)
-#	gluQuadricTexture(quadratic, GL_TRUE)
-#	glEnable(GL_CULL_FACE)
-#	glEnable(GL_DEPTH_TEST)
-	enemyTex = gettex("assets/enemy.png")
-	turretTex = gettex("assets/turret.png")
 	exploTex = {"tex": gettex("assets/explode.png"), "totalFrames": 8, "size": 16, "speed": 2}
 	explo2Tex = {"tex": gettex("assets/explode2.png"), "totalFrames": 6, "size": 32, "speed": 1}
+	exploBlueTex = {"tex": gettex("assets/explode_blue.png"), "totalFrames": 8, "size": 16, "speed": 2}
 	global windowsize
 	buttons.append(BuyButton(Tower, "assets/turret.png", windowsize[0] - 30, windowsize[1] - 30))
 	buttons.append(BuyButton(ShotgunTower, "assets/shotgun.png", windowsize[0] - 30, windowsize[1] - 60))
 	buttons.append(BuyButton(HealerTower, "assets/Healer.png", windowsize[0] - 30, windowsize[1] - 90))
-	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 30, windowsize[1] - 120))
+	buttons.append(BuyButton(BeamTower, "assets/BeamTower.png", windowsize[0] - 30, windowsize[1] - 120))
+	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 30, windowsize[1] - 150))
 
 def display():
 	game.update(0.1)
