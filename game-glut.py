@@ -200,6 +200,8 @@ class Entity(object):
 		self.health -= damage
 		return self.health < 0
 
+	def onKill(self,e): pass
+
 	onUpdate = lambda self,dt: dt
 	onDeath = lambda self: None
 	onDelete = lambda self: None
@@ -223,8 +225,7 @@ class Tower(Entity):
 		self.damage = 0
 		print "init " + str(self.id)
 
-	def _getMaxHealth(self):
-		return ceil(pow(1.2, self.level)) * 10
+	maxHealth = property(lambda self: ceil(1.2 ** self.level * 10))
 
 	def getShootTolerance(self):
 		return self.rotateSpeed
@@ -312,6 +313,11 @@ class Tower(Entity):
 	def onKill(self,e):
 		self.kills += 1
 		self.gainXp(e.maxHealth)
+
+	def onDeath(self):
+		global explo2Tex
+		self.game.removeTower(self)
+		self.game.effects.append(SpriteEffect(self.x, self.y, explo2Tex))
 
 
 class MissileTower(Tower):
@@ -421,7 +427,7 @@ class Bullet(Entity):
 	def draw(self):
 		glDisable(GL_TEXTURE_2D)
 		glPushMatrix()
-		glColor3f(1,1,0)
+		glColor3fv([1,0,0] if self.team == 0 else [1,1,0])
 		glTranslated(self.x, self.y, 0)
 		glRotated(self.angle * 360 / pi / 2, 0, 0, 1)
 		glScaled(16,16,1)
@@ -529,7 +535,8 @@ class Enemy(Entity):
 			spd = 100.
 			angle = random() * pi * 2.
 			mat = [cos(angle), sin(angle), -sin(angle), cos(angle)]
-			#self.game.addBullet(new Bullet(self.game, self.x, self.y, spd * mat[0], spd * mat[1], angle, self))
+			self.game.addBullet(Bullet(self.game, self.x, self.y,
+										   spd * mat[0], spd * mat[1], angle, self))
 
 		self.onUpdate(dt)
 		return True
