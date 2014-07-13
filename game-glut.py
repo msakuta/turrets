@@ -6,7 +6,7 @@ game-glut.py
 A Python port of turrets
 """
 
-import sys, numbers, gc
+import sys, numbers, gc, time
 from math import *
 from random import *
 
@@ -320,6 +320,11 @@ class Bullet(Entity):
 		glEnd()
 		glPopMatrix()
 
+	def onDelete(self):
+		global exploTex
+		if not self.vanished:
+			self.game.effects.append(Effect(self.x, self.y, exploTex))
+
 class Enemy(Entity):
 	""" Class representing an enemy unit. """
 
@@ -351,7 +356,9 @@ class Enemy(Entity):
 		return True
 
 	def onDeath(self):
+		global explo2Tex
 		self.game.removeEnemy(self)
+		self.game.effects.append(Effect(self.x, self.y, explo2Tex))
 
 	def draw(self):
 		global enemyTex
@@ -368,6 +375,35 @@ class Enemy(Entity):
 		glEnd()
 		glPopMatrix()
 
+class Effect(object):
+	def __init__(self,x,y,tex):
+		self.x = x
+		self.y = y
+		self.tex = tex
+		self.frame = 0
+		self.totalFrames = tex["totalFrames"]
+
+	def update(self,dt):
+		self.frame += dt * self.tex["speed"]
+		return self.frame < self.totalFrames
+
+	def draw(self):
+		glBindTexture(GL_TEXTURE_2D, self.tex["tex"])
+		glEnable(GL_TEXTURE_2D)
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glScaled(self.tex["size"], self.tex["size"], 1)
+		glColor3f(1,1,1)
+		frame = floor(self.frame)
+		unit = 1./self.totalFrames
+		glBegin(GL_QUADS)
+		glTexCoord2d(frame*unit,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d((frame+1)*unit,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d((frame+1)*unit,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(frame*unit,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
+
 class Game(object):
 	def __init__(self, width, height):
 		self.width = width
@@ -376,6 +412,7 @@ class Game(object):
 		self.towers = []
 		self.bullets = []
 		self.enemies = []
+		self.effects = []
 		# A flag to defer initialization of game state to enale calling logic to
 		# set event handlers on object creation in deserialization.
 		self.initialized = False
@@ -402,6 +439,9 @@ class Game(object):
 			b.update(dt)
 		for e in self.enemies:
 			e.update(dt)
+		for e in self.effects:
+			if not e.update(dt):
+				self.effects.remove(e)
 		genCount = random
 
 		""" A pseudo-random number generator distributed in Poisson distribution.
@@ -447,6 +487,8 @@ class Game(object):
 			e.draw()
 		for b in self.bullets:
 			b.draw()
+		for e in self.effects:
+			e.draw()
 
 	def removeTower(self,tower):
 		self.towers.remove(tower)
@@ -482,7 +524,7 @@ def gettex(path):
 	return tex
 
 def init():
-	global quadratic, enemyTex, turretTex
+	global quadratic, enemyTex, turretTex, exploTex, explo2Tex
 	glClearColor(0.0, 0.0, 0.0, 0.0)
 	glClearDepth(1.0)
 	glShadeModel(GL_SMOOTH)
@@ -493,7 +535,8 @@ def init():
 #	glEnable(GL_DEPTH_TEST)
 	enemyTex = gettex("assets/enemy.png")
 	turretTex = gettex("assets/turret.png")
-
+	exploTex = {"tex": gettex("assets/explode.png"), "totalFrames": 8, "size": 16, "speed": 2}
+	explo2Tex = {"tex": gettex("assets/explode2.png"), "totalFrames": 6, "size": 32, "speed": 1}
 
 def display():
 	game.update(0.1)
@@ -514,8 +557,10 @@ def display():
 
 	glFlush()
 
+	time.sleep(0.01)
+
 	glutPostRedisplay()
-	print gc.get_count(), gc.garbage, len(game.enemies), len(game.bullets)
+	print gc.get_count(), gc.garbage, len(game.enemies), len(game.bullets), len(game.effects)
 
 mousestate = False
 mousepos = [0,0]
