@@ -785,6 +785,80 @@ class Enemy(Entity):
 		return Enemy.texParams
 
 
+class Enemy2(Enemy):
+	""" \brief Tier 2 enemy with higher health and credit """
+	def __init__(self,game,x,y):
+		Enemy.__init__(self,game,x,y)
+		self.health = self.maxHealth
+		self.radius = 15
+		self.credit = ceil(random() * 150)
+	
+	maxHealth = 150
+
+	def shootFrequency(self):
+		return 0.2
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if Enemy2.tex == None:
+			Enemy2.tex = gettex("assets/boss.png", Enemy2.texParams)
+		return Enemy2.texParams
+
+class Enemy3(Enemy):
+	""" \brief Enemy with agility and evasive movements """
+	def __init__(self,game,x,y):
+		Enemy.__init__(self,game,x,y)
+		self.health = self.maxHealth
+		self.radius = 10
+		self.credit = ceil(random() * 150)
+		self.angle = 0
+		self.target = None
+		
+	maxHealth = 50
+	
+	def shootFrequency(self):
+		return 0.2
+
+	def shoot(self,dt):
+		spd = 100.
+		angle = self.angle + random() * pi * 0.2
+		mat = self.getRot(angle)
+		self.game.addBullet(Bullet(self.game, self.x, self.y, spd * mat[0], spd * mat[1], angle, self))
+
+
+	def update(self,dt):
+		if self.target == None and len(self.game.towers) != 0:
+			self.target = self.game.towers[randint(0, len(self.game.towers)-1)]
+			vec = self.target.pos
+			self.vx = vec[1] * 0.1
+			self.vy = -vec[0] * 0.1
+
+		if self.target != None:
+			self.vx += (self.target.x - self.x) * 0.1 * dt
+			self.vy += (self.target.y - self.y) * 0.1 * dt
+			self.angle = rapproach(self.angle, atan2(self.target.y - self.y, self.target.x - self.x), pi * 0.1)
+		else:
+			self.vx += (-self.x) * 0.1 * dt
+			self.vy += (-self.y) * 0.1 * dt
+
+		self.x += self.vx * dt
+		self.y += self.vy * dt
+
+		if random() < self.shootFrequency():
+			self.shoot(dt)
+		self.onUpdate(dt)
+		return True
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if Enemy3.tex == None:
+			Enemy3.tex = gettex("assets/enemy3.png", Enemy3.texParams)
+		return Enemy3.texParams
+
 class Enemy4(Enemy):
 	""" \brief Tier 4 enemy with higher health and credit """
 	def __init__(self,game,x,y):
@@ -1056,6 +1130,8 @@ class Game(object):
 	stageTime = waveTime * 10
 	enemyTypes = [
 		{"type": Enemy, "waves": 0, "freq": lambda f: (f + 2) / 20 if f < 20 else 1 / (f - 20 + 1)},
+		{"type": Enemy2, "waves": 5, "freq": lambda f: (f * 5000 + 10000) / 10000000 if f < 40 else 0.001 / (f - 40 + 1)},
+		{"type": Enemy3, "waves": 10, "freq": lambda f: (f * 5000 + 10000) / 10000000},
 		{"type": Enemy4, "waves": 20, "freq": lambda f: (f * 5000 + 10000) / 10000000},
 		{"type": MissileEnemy, "waves": 40, "freq": lambda f: (f * 5000 + 10000) / 20000000},
 	];
