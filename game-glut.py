@@ -230,10 +230,15 @@ class Tower(Entity):
 
 	maxHealth = property(lambda self: ceil(1.2 ** self.level * 10))
 
+	@staticmethod
+	def cost():
+		return ceil(1.5 ** len(game.towers) * 100)
+
 	def getShootTolerance(self):
 		return self.rotateSpeed
 
-	def dispName(self):
+	@staticmethod
+	def dispName():
 		return "Machine Gun";
 
 	def shoot(self):
@@ -314,6 +319,9 @@ class Tower(Entity):
 		glPopMatrix()
 
 	def onKill(self,e):
+		if e.team != 0:
+			self.game.score += e.maxHealth
+			self.game.credit += e.credit
 		self.kills += 1
 		self.gainXp(e.maxHealth)
 
@@ -329,10 +337,12 @@ class HealerTower(Tower):
 	def __init__(self,game,x,y):
 		Tower.__init__(self,game,x,y)
 
-	dispName = property(lambda self: "Healer")
+	@staticmethod
+	def dispName(): return "Healer"
 
-	def cost(self):
-		return ceil(1.5 ** len(self.game.towers) * 200)
+	@staticmethod
+	def cost():
+		return ceil(1.5 ** len(game.towers) * 200)
 
 	healAmount = property(lambda self: 1 + 0.1 * self.level)
 
@@ -421,11 +431,13 @@ class MissileTower(Tower):
 
 	nextXp = property(lambda(self): ceil(1.5 ** (self.level-1) * 500))
 
-	def dispName(self):
+	@staticmethod
+	def dispName():
 		return "MissileTower"
 
-	def cost(self):
-		return ceil(pow(1.5, self.game.towers.length) * 350)
+	@staticmethod
+	def cost():
+		return ceil(1.5 ** len(game.towers) * 350)
 
 	def getDamage(self):
 		return 30 * pow(1.2, self.level)
@@ -819,17 +831,16 @@ class Game(object):
 		# A flag to defer initialization of game state to enale calling logic to
 		# set event handlers on object creation in deserialization.
 		self.initialized = False
-		"""	self.pause = false;
-			self.moving = false; ///< Moving something (temporary pause)
-			self.mouseX = 0;
-			self.mouseY = 0;
-			self.score = 0;
-			self.credit = 0;
-			self.progress = 0;
-			self.stage = null;
-			self.stageClear = true;
-			self.highScores = [];
-		"""
+		self.pause = False
+		self.moving = False # Moving something (temporary pause)
+		self.mouseX = 0
+		self.mouseY = 0
+		self.score = 0
+		self.credit = 2000
+		self.progress = 0
+		self.stage = None
+		self.stageClear = True
+		self.highScores = []
 
 		for i in range(3):
 			tower = Tower(self, random() * 200 + 100, random() * 200 + 100)
@@ -932,6 +943,25 @@ class Game(object):
 			drawText(text, t.x - 45, t.y - 20)
 			glPopMatrix()
 
+		glPushMatrix()
+		glDisable(GL_TEXTURE_2D)
+		glDisable(GL_ALPHA_TEST)
+		glLineWidth(1)
+		glTranslated(20, self.height - 20, 0)
+		for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
+			glColor4fv(i[0])
+			glBegin(i[1])
+			glVertex2d(0, 0)
+			glVertex2d(80, 0)
+			glVertex2d(80, -50)
+			glVertex2d(0, -50)
+			glEnd()
+		text = "Score: %d\n" % self.score
+		text += "Credit: %g\n" % self.credit
+		text += "Stage: %s\n" % str(self.stage)
+		drawText(text, 20, self.height - 32)
+		glPopMatrix()
+
 	def selectTower(self,pos):
 		self.selectedTower = None
 		for t in self.towers:
@@ -988,14 +1018,114 @@ class Game(object):
 		self.bullets.remove(b)
 		b.onDelete()
 		return True
+	
+	def addTowerEvent(self,t):
+		pass
 
 	def onHeal(self, target, src):
 		self.effects.append(HealEffect(target, src))
+		
+	def isGameOver(self):
+		return len(self.towers) == 0
 
 game = Game(500, 500)
 
+boughtTower = None
 
+class BuyButton(object):
+	""" Display element representing buy button """
+	def __init__(self,classType,imagePath,x,y):
+		self.classType = classType
+		self.imagePath = imagePath
+		self.x = x
+		self.y = y
+		self.tex = None
+		self.texParams = {}
 
+	def draw(self):
+		glPushMatrix()
+		glDisable(GL_TEXTURE_2D)
+		glDisable(GL_ALPHA_TEST)
+		glLineWidth(1)
+		glTranslated(self.x, self.y, 0)
+		glColor4f(0,0,0,0.5)
+		for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
+			glColor4fv(i[0])
+			glBegin(i[1])
+			glVertex2d(-15, -15)
+			glVertex2d(15, -15)
+			glVertex2d(15, 15)
+			glVertex2d(-15, 15)
+			glEnd()
+		# Load on first use
+		if self.tex == None:
+			self.tex = gettex(self.imagePath, self.texParams)
+		glBindTexture(GL_TEXTURE_2D, self.tex)
+		glEnable(GL_TEXTURE_2D)
+		glColor4f(1,1,1, 1 if self.classType.cost() < game.credit else 0.5)
+		glPushMatrix()
+		glScaled(self.texParams["size"][0],self.texParams["size"][1],1)
+		glBegin(GL_QUADS)
+		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
+		
+		global selectedButton
+		if selectedButton == self:
+			glDisable(GL_TEXTURE_2D)
+			glTranslated(-155, 0, 0)
+			for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
+				glColor4fv(i[0])
+				glBegin(i[1])
+				glVertex2d(0, -30)
+				glVertex2d(130, -30)
+				glVertex2d(130, 15)
+				glVertex2d(0, 15)
+				glEnd()
+			text = self.classType.dispName() + "\n"
+			text += "Cost: %g\n" % self.classType.cost()
+			text += "Drag & Drop to buy"
+			drawText(text, self.x - 150, self.y)
+
+		glPopMatrix()
+
+	def hitTest(self,pos):
+		return abs(pos[0] - self.x) < 15 and abs(pos[1] - self.y) < 15
+
+	def pressmove(self,evt):
+		global boughtTower, mousepos
+		if game.isGameOver():
+			return
+		if not self.hitTest(mousepos) and boughtTower == None:
+			cost = self.classType.cost()
+			if game.credit < cost:
+				return
+			boughtTower = self.classType(game, self.x, self.y)
+			game.towers.append(boughtTower)
+			game.addTowerEvent(boughtTower)
+			game.credit -= cost
+		if boughtTower != None:
+			game.moving = True
+			boughtTower.x = mousepos[0]
+			boughtTower.y = mousepos[1]
+			boughtTower.onUpdate(0)
+
+	def pressup(self):
+		global boughtTower
+		game.moving = False
+		if boughtTower != None:
+			game.separateTower(boughtTower)
+			boughtTower = None
+
+	def update(self,dt):
+		buyTip.texts[1].text = "Cost: " + formatVal(classType.prototype.cost(), 5);
+
+buttons = []
+selectedButton = None
+windowsize = [500, 500]
 
 def init():
 	global quadratic, enemyTex, turretTex, exploTex, explo2Tex
@@ -1011,6 +1141,10 @@ def init():
 	turretTex = gettex("assets/turret.png")
 	exploTex = {"tex": gettex("assets/explode.png"), "totalFrames": 8, "size": 16, "speed": 2}
 	explo2Tex = {"tex": gettex("assets/explode2.png"), "totalFrames": 6, "size": 32, "speed": 1}
+	global windowsize
+	buttons.append(BuyButton(Tower, "assets/turret.png", windowsize[0] - 30, windowsize[1] - 30))
+	buttons.append(BuyButton(HealerTower, "assets/Healer.png", windowsize[0] - 30, windowsize[1] - 60))
+	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 30, windowsize[1] - 90))
 
 def display():
 	game.update(0.1)
@@ -1026,6 +1160,9 @@ def display():
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); # Alpha blend
 
 	game.draw()
+	
+	for b in buttons:
+		b.draw()
 
 	deltaTime = 2
 
@@ -1038,11 +1175,10 @@ def display():
 
 mousestate = False
 mousepos = vec2(0,0)
-windowsize = [400, 400]
 
 def mouse(button, state, x, y):
-	global mousestate, mousepos
-	if state:
+	global mousestate, mousepos, selectedButton
+	if state == GLUT_DOWN:
 		mousestate = True
 	else:
 		mousestate = False
@@ -1050,11 +1186,21 @@ def mouse(button, state, x, y):
 		mousepos[0] = x
 		mousepos[1] = windowsize[1] - y
 		game.selectTower(mousepos)
+		if game.selectedTower == None:
+			selectedButton = None
+			for b in buttons:
+				if b.hitTest(mousepos):
+					selectedButton = b
+	elif selectedButton != None and not selectedButton.hitTest(mousepos):
+		selectedButton.pressup()
 
 def motion(x, y):
 	global mousepos
 	mousepos[0] = x
 	mousepos[1] = windowsize[1] - y
+	if mousestate:
+		if selectedButton != None:
+			selectedButton.pressmove({"stageX": mousepos[0], "stageY": mousepos[1]})
 	if game.selectedTower == None:
 		game.selectTower(mousepos)
 	if game.selectedTower != None:
