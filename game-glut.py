@@ -162,6 +162,7 @@ def gettex(path, params = {}):
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 	print "Image loaded: path: %s, tex: %d, size: %s" % (path, tex, img.size)
+	params["tex"] = tex
 	params["size"] = img.size
 #	img.show()
 	return tex
@@ -324,14 +325,22 @@ class Tower(Entity):
 			self.level += 1
 			self.health = self.maxHealth # Fully recover
 
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if Tower.tex == None:
+			Tower.tex = gettex("assets/turret.png", Tower.texParams)
+		return Tower.texParams
+			
 	def draw(self):
-		global turretTex
-		glBindTexture(GL_TEXTURE_2D, turretTex)
+		texParams = self.getTexture()
+		glBindTexture(GL_TEXTURE_2D, texParams["tex"])
 		glPushMatrix()
 		glTranslated(self.x, self.y, 0)
 		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
 		glColor3f(1,1,1)
-		glScaled(16,16,1)
+		glScaled(texParams["size"][0],texParams["size"][1],1)
 		glBegin(GL_QUADS)
 		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
 		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
@@ -351,6 +360,41 @@ class Tower(Entity):
 		global explo2Tex
 		self.game.removeTower(self)
 		self.game.effects.append(SpriteEffect(self.x, self.y, explo2Tex))
+
+class ShotgunTower(Tower):
+	""" Tower with a shotgun, which shoots spreading bullets """
+
+	@staticmethod
+	def dispName(): return "Shotgun"
+
+	@staticmethod
+	def cost(): return ceil(1.5 ** len(game.towers) * 150)
+
+	def shoot(self):
+		spd = 100
+		bullets = int(floor(5 + self.level / 2))
+		for i in range(-bullets, bullets+1):
+			angle = self.angle + i * pi / 40.
+			mat = self.getRot(angle)
+			ofs = mattvp(mat, [0, i * 5])
+			b = Bullet(self.game, self.x, self.y, spd * mat[0], spd * mat[1], angle, self)
+			b.damage = 1.2 ** self.level
+			self.game.addBullet(b)
+		self.cooldown = self.getCooldownTime()
+
+	def getCooldownTime(self):
+		return 20
+
+	def getDPS(self,frameTime):
+		return floor(5 + self.level / 2) * (1.2 ** self.level) / self.getCooldownTime() / frameTime
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if ShotgunTower.tex == None:
+			ShotgunTower.tex = gettex("assets/shotgun.png", ShotgunTower.texParams)
+		return ShotgunTower.texParams
 
 
 class HealerTower(Tower):
@@ -409,24 +453,11 @@ class HealerTower(Tower):
 
 	tex = None
 	texParams = {}
-
-	def draw(self):
+	def getTexture(self):
 		# Load on first use
 		if HealerTower.tex == None:
 			HealerTower.tex = gettex("assets/healer.png", HealerTower.texParams)
-		glBindTexture(GL_TEXTURE_2D, HealerTower.tex)
-		glPushMatrix()
-		glTranslated(self.x, self.y, 0)
-		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
-		glColor3f(1,1,1)
-		glScaled(HealerTower.texParams["size"][0],HealerTower.texParams["size"][1],1)
-		glBegin(GL_QUADS)
-		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
-		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
-		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
-		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
-		glEnd()
-		glPopMatrix()
+		return HealerTower.texParams
 
 	def getRange(self):
 		return ceil((self.level + 10) * 5)
@@ -485,23 +516,13 @@ class MissileTower(Tower):
 	def getDPS(self,frameTime):
 		return self.getDamage() / self.getCooldownTime() / frameTime
 
-	def draw(self):
+	tex = None
+	texParams = {}
+	def getTexture(self):
 		# Load on first use
-		if MissileTower.missileTowerTex == None:
-			MissileTower.missileTowerTex = gettex("assets/MissileTower.png", MissileTower.missileTowerTexParams)
-		glBindTexture(GL_TEXTURE_2D, MissileTower.missileTowerTex)
-		glPushMatrix()
-		glTranslated(self.x, self.y, 0)
-		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
-		glColor3f(1,1,1)
-		glScaled(MissileTower.missileTowerTexParams["size"][0],MissileTower.missileTowerTexParams["size"][1],1)
-		glBegin(GL_QUADS)
-		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
-		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
-		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
-		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
-		glEnd()
-		glPopMatrix()
+		if MissileTower.tex == None:
+			MissileTower.tex = gettex("assets/MissileTower.png", MissileTower.texParams)
+		return MissileTower.texParams
 
 class Bullet(Entity):
 	def __init__(self,game,x,y,vx,vy,angle,owner):
@@ -858,7 +879,7 @@ class Game(object):
 		self.mouseX = 0
 		self.mouseY = 0
 		self.score = 0
-		self.credit = 2000
+		self.credit = 5000
 		self.progress = 0
 		self.stage = None
 		self.stageClear = True
@@ -866,9 +887,6 @@ class Game(object):
 
 		for i in range(3):
 			tower = Tower(self, random() * 200 + 150, random() * 200 + 150)
-			self.towers.append(tower)
-		for i in range(2):
-			tower = MissileTower(self, random() * 200 + 150, random() * 200 + 150)
 			self.towers.append(tower)
 		for i in range(2):
 			tower = HealerTower(self, random() * 200 + 150, random() * 200 + 150)
@@ -1211,8 +1229,9 @@ def init():
 	explo2Tex = {"tex": gettex("assets/explode2.png"), "totalFrames": 6, "size": 32, "speed": 1}
 	global windowsize
 	buttons.append(BuyButton(Tower, "assets/turret.png", windowsize[0] - 30, windowsize[1] - 30))
-	buttons.append(BuyButton(HealerTower, "assets/Healer.png", windowsize[0] - 30, windowsize[1] - 60))
-	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 30, windowsize[1] - 90))
+	buttons.append(BuyButton(ShotgunTower, "assets/shotgun.png", windowsize[0] - 30, windowsize[1] - 60))
+	buttons.append(BuyButton(HealerTower, "assets/Healer.png", windowsize[0] - 30, windowsize[1] - 90))
+	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 30, windowsize[1] - 120))
 
 def display():
 	game.update(0.1)
