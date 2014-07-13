@@ -245,43 +245,6 @@ Tower.prototype.receiveDamage = function(dmg){
 	return false;
 }
 
-Tower.prototype.draw = function(ctx,mouseon){
-	var v = this;
-
-	ctx.translate(v.x, v.y);
-	ctx.rotate(v.angle);
-	ctx.fillStyle = "#fff";
-	ctx.fillRect(0, -5, 20, 10);
-	ctx.strokeStyle = "#0ff";
-	ctx.strokeRect(0, -5, 20, 10);
-	ctx.setTransform(1,0,0,1,0,0);
-
-	ctx.strokeStyle = "#00f";
-	ctx.fillStyle = mouseon ? "#ff0" : "#fff";
-	ctx.beginPath();
-	ctx.arc(v.x, v.y, 10, 0, Math.PI*2, false);
-	ctx.stroke();
-	ctx.fill();
-	ctx.fillStyle = "#f00";
-	ctx.font = "bold 16px Helvetica";
-	ctx.fillText(v.id, v.x, v.y);
-
-	if(mouseon){
-		ctx.translate(v.x, v.y);
-		ctx.fillStyle = "#0f0";
-		ctx.fillRect(-10, -20, 20, 5);
-		ctx.fillStyle = "#111";
-		ctx.fillRect(-40, 15, 80, 20);
-		ctx.strokeStyle = "#fff";
-		ctx.strokeRect(-40, 15, 80, 20);
-		ctx.font = "10px Helvetica";
-		ctx.fillStyle = "#fff";
-		ctx.fillText("Kills: " + this.kills, 0, 20);
-		ctx.fillText("Damage: " + this.damage, 0, 30);
-		ctx.setTransform(1,0,0,1,0,0);
-	}
-}
-
 Tower.prototype.idGen = 0;
 
 Tower.prototype.cost = function(){
@@ -633,15 +596,6 @@ Bullet.prototype.update = function(dt){
 	}
 }
 
-Bullet.prototype.draw = function(ctx){
-	var v = this;
-	ctx.translate(v.x, v.y);
-	ctx.rotate(v.angle);
-	ctx.fillStyle = "#f00";
-	ctx.fillRect(-5, -2, 5, 2);
-	ctx.setTransform(1,0,0,1,0,0);
-}
-
 Bullet.prototype.onUpdate = function(dt){
 	// Default does nothing
 }
@@ -747,16 +701,6 @@ Enemy.prototype.calcPos = function(){
 	pos[0] = this.x;
 	pos[1] = this.y;
 	return pos;
-}
-
-Enemy.prototype.draw = function(ctx){
-	var pos = this.calcPos();
-	var inten = Math.floor(this.health * 255 / 10);
-	ctx.fillStyle = "rgb(0," + inten + "," + inten + ")";
-	ctx.beginPath();
-	ctx.arc(pos[0], pos[1], 7.5, 0, Math.PI*2, false);
-	ctx.fill();
-	ctx.stroke();
 }
 
 Enemy.prototype.onUpdate = function(dt){
@@ -1381,40 +1325,6 @@ Game.prototype.separateTower = function(tower){
 		if(!moved)
 			break;
 	}
-}
-
-Game.prototype.draw = function(ctx){
-	ctx.fillStyle = "#000";
-	ctx.clearRect(0,0,this.width,this.height);
-
-	ctx.font = "bold 16px Helvetica";
-	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-
-	ctx.setTransform(1,0,0,1,0,0);
-	for(var i = 0; i < this.towers.length; i++){
-		var v = game.towers[i];
-		v.draw(ctx, v.x - 10 < this.mouseX && this.mouseX < v.x + 10 && v.y - 10 < this.mouseY && this.mouseY < v.y + 10);
-	}
-
-	for(var i = 0; i < this.bullets.length; i++){
-		var v = game.bullets[i];
-		v.draw(ctx);
-	}
-
-	ctx.strokeStyle = "#f00";
-	ctx.fillStyle = "#0ff";
-	for(var i = 0; i < this.enemies.length; i++){
-		this.enemies[i].draw(ctx);
-	}
-
-	ctx.strokeStyle = "#fff";
-	ctx.beginPath();
-	ctx.moveTo(this.mouseX, 0);
-	ctx.lineTo(this.mouseX, this.height);
-	ctx.moveTo(0, this.mouseY);
-	ctx.lineTo(this.width, this.mouseY);
-	ctx.stroke();
 }
 
 Game.prototype.onClick = function(e){
