@@ -26,6 +26,16 @@ except:
 ERROR: PIL not installed properly.  
         '''
 
+# Utility 2D matrix functions
+def matvp(m,v):
+	""" Matrix Vector product """
+	return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]]
+
+def mattvp(m,v):
+	""" Matrix Transpose Vector product """
+	return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]]
+
+
 
 def approach(src, dst, delta, wrap):
 	""" Approach src to dst by delta, optionally wrapping around wrap """
@@ -158,7 +168,15 @@ class Entity(object):
 	def measureDistance(self, other):
 		return sqrt((self.x - other.x) * (self.x - other.x) + (self.y - other.y) * (self.y - other.y))
 
+	def receiveDamage(self,damage):
+		if 0 < self.health and self.health - damage <= 0:
+			self.onDeath()
+		self.health -= damage
+		return self.health < 0
+
 	onUpdate = lambda self,dt: dt
+	onDeath = lambda self: None
+	onDelete = lambda self: None
 
 
 class Tower(Entity):
@@ -166,6 +184,7 @@ class Tower(Entity):
 	target = None
 	rotateSpeed = pi / 10. # Radians per frame
 	stickiness = 1
+	onKill = lambda self,o: None
 
 	def __init__(self,game,x,y):
 		Entity.__init__(self,game,x,y)
@@ -189,7 +208,17 @@ class Tower(Entity):
 		return "Machine Gun";
 
 	def shoot(self):
-		pass
+		spd = 100
+		mat = [cos(self.angle), sin(self.angle), -sin(self.angle), cos(self.angle)]
+		for i in [-1,1]:
+			ofs = mattvp(mat, [0, i * 5])
+			b = Bullet(self.game, self.x + ofs[0], self.y + ofs[1], spd * mat[0], spd * mat[1], self.angle, self)
+			b.damage = pow(1.2, self.level)
+			self.game.addBullet(b)
+		self.cooldown = self.getCooldownTime()
+
+	def getCooldownTime(self):
+		return 4
 
 	def update(self,dt):
 		enemies = self.game.enemies
@@ -207,7 +236,7 @@ class Tower(Entity):
 
 		if nearest != None:
 			self.target = nearest
-			print "targetted " + str(self.target)
+			#print "targetted " + str(self.target)
 		if self.target != None and self.target.health <= 0:
 			self.target = None
 
@@ -232,13 +261,62 @@ class Tower(Entity):
 		glBindTexture(GL_TEXTURE_2D, turretTex)
 		glPushMatrix()
 		glTranslated(self.x, self.y, 0)
-		glRotated(self.angle * 360 / pi / 2, 0, 0, 1)
+		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
+		glColor3f(1,1,1)
 		glScaled(16,16,1)
 		glBegin(GL_QUADS)
 		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
 		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
 		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
 		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
+
+class Bullet(Entity):
+	def __init__(self,game,x,y,vx,vy,angle,owner):
+		self.game = game
+		self.x = x
+		self.y = y
+		self.vx = vx
+		self.vy = vy
+		self.angle = angle
+		self.owner = owner
+		self.team = owner.team
+		self.damage = 1
+		self.vanished = False
+
+	def update(self,dt):
+		self.x += self.vx * dt;
+		self.y += self.vy * dt;
+		enemies = self.game.enemies if self.team == 0 else self.game.towers
+		for e in enemies:
+			if e.measureDistance(self) < e.radius:
+				self.owner.damage += self.damage
+				if e.receiveDamage(self.damage):
+					self.owner.onKill(e)
+				self.game.removeBullet(self)
+				return 0
+		self.onUpdate(dt);
+		if 0 < self.x and self.x < self.game.width and 0 < self.y and self.y < self.game.height:
+			return 1
+		else:
+			# Hitting edge won't trigger bullet hit effect
+			self.vanished = True
+			self.game.removeBullet(self)
+			return 0
+
+	def draw(self):
+		glDisable(GL_TEXTURE_2D)
+		glPushMatrix()
+		glColor3f(1,1,0)
+		glTranslated(self.x, self.y, 0)
+		glRotated(self.angle * 360 / pi / 2, 0, 0, 1)
+		glScaled(16,16,1)
+		glBegin(GL_QUADS)
+		glVertex2d(-0.5, -0.1)
+		glVertex2d( 0.5, -0.1)
+		glVertex2d( 0.5,  0.1)
+		glVertex2d(-0.5,  0.1)
 		glEnd()
 		glPopMatrix()
 
@@ -272,12 +350,16 @@ class Enemy(Entity):
 		self.onUpdate(dt)
 		return True
 
+	def onDeath(self):
+		self.game.removeEnemy(self)
+
 	def draw(self):
 		global enemyTex
 		glBindTexture(GL_TEXTURE_2D, enemyTex)
 		glPushMatrix()
 		glTranslated(self.x, self.y, 0)
 		glScaled(16,16,1)
+		glColor3f(1,1,1)
 		glBegin(GL_QUADS)
 		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
 		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
@@ -316,9 +398,26 @@ class Game(object):
 	def update(self,dt):
 		for t in self.towers:
 			t.update(dt)
+		for b in self.bullets:
+			b.update(dt)
 		for e in self.enemies:
 			e.update(dt)
-		genCount = 1
+		genCount = random
+
+		""" A pseudo-random number generator distributed in Poisson distribution.
+		 It uses Knuth's algorithm, which is not optimal when lambda gets
+		 so high.  We probably should use an approximation. """
+		def poissonRandom(lmda):
+			L = exp(-lmda)
+			k = 0
+			p = 1
+			while L < p:
+				k += 1
+				p *= random()
+			return k - 1
+
+		genCount = poissonRandom(0.1)
+
 		for j in range(genCount):
 			edge = randint(0, 3)
 			x = 0
@@ -338,11 +437,32 @@ class Game(object):
 			e = Enemy(self, x, y)
 			self.enemies.append(e)
 
+	def addBullet(self,b):
+		self.bullets.append(b)
+
 	def draw(self):
 		for t in self.towers:
 			t.draw()
 		for e in self.enemies:
 			e.draw()
+		for b in self.bullets:
+			b.draw()
+
+	def removeTower(self,tower):
+		self.towers.remove(tower)
+		tower.onDelete()
+		return True
+
+	def removeEnemy(self,e):
+		self.enemies.remove(e)
+		e.onDelete()
+		return True
+
+	def removeBullet(self,b):
+		self.bullets.remove(b)
+		b.onDelete()
+		return True
+
 
 game = Game(400, 400)
 
@@ -390,24 +510,12 @@ def display():
 
 	game.draw()
 
-	glBegin(GL_LINES)
-	glColor3f (1.0, 0.0, 0.0)
-	glVertex3d(-1000, 0, 0)
-	glVertex3d( 1000, 0, 0)
-	glColor3f (0.0, 1.0, 0.0)
-	glVertex3d(0, -1000, 0)
-	glVertex3d(0,  1000, 0)
-	glColor3f (0.0, 0.0, 1.0)
-	glVertex3d(0, 0, -1000)
-	glVertex3d(0, 0,  1000)
-	glEnd()
-
 	deltaTime = 2
 
 	glFlush()
 
 	glutPostRedisplay()
-#	print gc.get_count(), gc.garbage
+	print gc.get_count(), gc.garbage, len(game.enemies), len(game.bullets)
 
 mousestate = False
 mousepos = [0,0]
