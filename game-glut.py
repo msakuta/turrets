@@ -150,6 +150,19 @@ class vec2(object):
 	def len(self):
 		return sqrt(self.slen())
 
+def gettex(path, params = {}):
+	img = Image.open(path)
+	tex = glGenTextures(1)
+	glBindTexture(GL_TEXTURE_2D, tex)
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.size[0], img.size[1],
+	        0, GL_RGBA, GL_UNSIGNED_BYTE, img.convert("RGBA").tostring())
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+	print "Image loaded: path: %s, tex: %d, size: %s" % (path, tex, img.size)
+	params["size"] = img.size
+#	img.show()
+	return tex
+
 class Entity(object):
 	game = None
 	pos = vec2(0,0)
@@ -164,6 +177,13 @@ class Entity(object):
 		self.game = game
 		self.x = x
 		self.y = y
+
+	def _set_pos(self,v): self.x=v[0], self.y=v[1]
+
+	pos = property(lambda self: [self.x, self.y], _set_pos, None)
+
+	def getRot(self,angle):
+		return [cos(angle), sin(angle), -sin(angle), cos(angle)]
 
 	def measureDistance(self, other):
 		return sqrt((self.x - other.x) * (self.x - other.x) + (self.y - other.y) * (self.y - other.y))
@@ -272,6 +292,76 @@ class Tower(Entity):
 		glEnd()
 		glPopMatrix()
 
+
+class MissileTower(Tower):
+	""" Tower launching missiles """
+	missileTowerTex = None
+	missileTowerTexParams = {}
+	def __init__(self,game,x,y):
+		Tower.__init__(self,game,x,y)
+		self.radius = 18
+		self.cooldown = 15
+		self.shootPhase = 0
+
+	rotateSpeed = pi / 30.
+	def getShootTolerance(self):
+		return pi
+	stickiness = 3
+
+	def maxHealth(self):
+		return ceil(pow(1.2, self.level) * 25)
+
+	def maxXp(self):
+		return ceil(pow(1.5, self.level-1) * 500)
+
+	def dispName(self):
+		return "MissileTower"
+
+	def cost(self):
+		return ceil(pow(1.5, self.game.towers.length) * 350)
+
+	def getDamage(self):
+		return 30 * pow(1.2, self.level)
+
+	def getCooldownTime(self):
+		return 30
+
+	def shoot(self):
+		spd = 100
+		bullets = floor(5 + self.level / 2)
+		for i in [-2,-1,1,2]:
+			angle = self.angle + i * pi * 0.05
+			mat = self.getRot(angle)
+			pos = mattvp(mat, [-abs(i) * 2 + 10, i * 6])
+			b = Missile(self.game, self.x + pos[0], self.y + pos[1], spd * mat[0], spd * mat[1], angle, self)
+			b.damage = self.getDamage()
+			b.target = self.target
+			b.speed = 100
+			b.rotateSpeed = pi
+			self.game.addBullet(b)
+		self.cooldown = self.getCooldownTime();
+
+	def getDPS(self,frameTime):
+		return self.getDamage() / self.getCooldownTime() / frameTime
+
+	def draw(self):
+		# Load on first use
+		if MissileTower.missileTowerTex == None:
+			MissileTower.missileTowerTex = gettex("assets/MissileTower.png", MissileTower.missileTowerTexParams)
+		glBindTexture(GL_TEXTURE_2D, MissileTower.missileTowerTex)
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
+		glColor3f(1,1,1)
+		glScaled(MissileTower.missileTowerTexParams["size"][0],MissileTower.missileTowerTexParams["size"][1],1)
+		glBegin(GL_QUADS)
+		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
+
 class Bullet(Entity):
 	def __init__(self,game,x,y,vx,vy,angle,owner):
 		self.game = game
@@ -284,6 +374,7 @@ class Bullet(Entity):
 		self.team = owner.team
 		self.damage = 1
 		self.vanished = False
+		self.alive = True
 
 	def update(self,dt):
 		self.x += self.vx * dt;
@@ -323,7 +414,73 @@ class Bullet(Entity):
 	def onDelete(self):
 		global exploTex
 		if not self.vanished:
-			self.game.effects.append(Effect(self.x, self.y, exploTex))
+			self.game.effects.append(SpriteEffect(self.x, self.y, exploTex))
+		self.alive = False
+
+
+class Missile(Bullet):
+	""" A guided missile """
+	tex = None
+	texParams = {}
+
+	def __init__(self,game,x,y,vx,vy,angle,owner):
+		Bullet.__init__(self, game,x,y,vx,vy,angle,owner);
+		self.life = 10;
+		self.seekTime = 8;
+		self.speed = 75;
+		self.rotateSpeed = pi * 0.5;
+		self.target = None;
+		game.effects.append(TrailEffect(x,y,self))
+
+	def update(self,dt):
+		if not Bullet.update(self, dt):
+			return False
+		if 0 < self.seekTime:
+			self.seekTime -= 1
+			return True
+
+		# Search for target if already have none
+		if self.target == None or self.target.health <= 0:
+			enemies = self.game.enemies if self.team == 0 else self.game.towers
+			nearest = None
+			nearestSDist = 300 * 300
+			predPos = [self.x + self.speed / self.rotateSpeed * cos(self.angle),
+				self.y + self.speed / self.rotateSpeed * sin(self.angle)]
+			for e in enemies:
+				dv = [e.x - predPos[0], e.y - predPos[1]]
+				if 0 < e.health and dv[0] * dv[0] + dv[1] * dv[1] < nearestSDist:
+					nearest = e
+					nearestSDist = dv[0] * dv[0] + dv[1] * dv[1]
+			if nearest != None:
+				self.target = nearest
+
+		# Guide toward target
+		if self.target != None and 0 < self.target.health:
+			self.angle = rapproach(self.angle, atan2(self.target.y - self.y, self.target.x - self.x), self.rotateSpeed * dt)
+			self.vx = self.speed * cos(self.angle)
+			self.vy = self.speed * sin(self.angle);
+		return True
+
+	def draw(self):
+		# Load on first use
+		if Missile.tex == None:
+			Missile.tex = gettex("assets/Missile.png", Missile.texParams)
+		glBindTexture(GL_TEXTURE_2D, Missile.tex)
+		glEnable(GL_TEXTURE_2D)
+		glDisable(GL_BLEND)
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
+		glColor3f(1,1,1)
+		#print Missile.tex
+		glScaled(Missile.texParams["size"][0],Missile.texParams["size"][1],1)
+		glBegin(GL_QUADS)
+		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
 
 class Enemy(Entity):
 	""" Class representing an enemy unit. """
@@ -358,7 +515,7 @@ class Enemy(Entity):
 	def onDeath(self):
 		global explo2Tex
 		self.game.removeEnemy(self)
-		self.game.effects.append(Effect(self.x, self.y, explo2Tex))
+		self.game.effects.append(SpriteEffect(self.x, self.y, explo2Tex))
 
 	def draw(self):
 		global enemyTex
@@ -376,9 +533,19 @@ class Enemy(Entity):
 		glPopMatrix()
 
 class Effect(object):
-	def __init__(self,x,y,tex):
+	def __init__(self,x,y):
 		self.x = x
 		self.y = y
+
+	def update(self,dt):
+		return False
+
+	def draw(self):
+		pass
+
+class SpriteEffect(Effect):
+	def __init__(self,x,y,tex):
+		Effect.__init__(self,x,y)
 		self.tex = tex
 		self.frame = 0
 		self.totalFrames = tex["totalFrames"]
@@ -404,6 +571,45 @@ class Effect(object):
 		glEnd()
 		glPopMatrix()
 
+class TrailEffect(Effect):
+	trailLen = 50
+	def __init__(self,x,y,follow):
+		Effect.__init__(self,x,y)
+		self.follow = follow
+		self.trails = []
+		self.headAge = 0
+
+	def update(self,dt):
+		if self.follow.alive:
+			self.trails.append(self.follow.pos)
+		else:
+			self.headAge += 1
+			#del self.trails[0]
+			if self.trailLen < self.headAge:
+				return False
+		return True
+
+	def draw(self):
+		glEnable(GL_BLEND)
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); # Alpha blend
+		glDisable(GL_TEXTURE_2D)
+		glDisable(GL_ALPHA_TEST)
+		glLineWidth(2)
+		glEnable(GL_LINE_SMOOTH)
+		glHint( GL_LINE_SMOOTH_HINT, GL_NICEST )
+		glBegin(GL_LINE_STRIP)
+		f = 1. - float(self.headAge) / self.trailLen
+		for i in range(len(self.trails)-1,-1,-1):
+			v = self.trails[i]
+			#f = float(i - len(self.trails) + self.trailLen - self.headAge) / self.trailLen
+			glColor4f(1, 0.5, 1, f)
+			glVertex2d(v[0], v[1])
+			f -= 1. / self.trailLen
+			if f < 0:
+				del self.trails[0:i]
+				break
+		glEnd()
+
 class Game(object):
 	def __init__(self, width, height):
 		self.width = width
@@ -416,20 +622,23 @@ class Game(object):
 		# A flag to defer initialization of game state to enale calling logic to
 		# set event handlers on object creation in deserialization.
 		self.initialized = False
-		"""	this.pause = false;
-			this.moving = false; ///< Moving something (temporary pause)
-			this.mouseX = 0;
-			this.mouseY = 0;
-			this.score = 0;
-			this.credit = 0;
-			this.progress = 0;
-			this.stage = null;
-			this.stageClear = true;
-			this.highScores = [];
+		"""	self.pause = false;
+			self.moving = false; ///< Moving something (temporary pause)
+			self.mouseX = 0;
+			self.mouseY = 0;
+			self.score = 0;
+			self.credit = 0;
+			self.progress = 0;
+			self.stage = null;
+			self.stageClear = true;
+			self.highScores = [];
 		"""
 
 		for i in range(3):
 			tower = Tower(self, random() * 200 + 100, random() * 200 + 100)
+			self.towers.append(tower)
+		for i in range(2):
+			tower = MissileTower(self, random() * 200 + 100, random() * 200 + 100)
 			self.towers.append(tower)
 
 	def update(self,dt):
@@ -456,7 +665,7 @@ class Game(object):
 				p *= random()
 			return k - 1
 
-		genCount = poissonRandom(0.1)
+		genCount = poissonRandom(0.3)
 
 		for j in range(genCount):
 			edge = randint(0, 3)
@@ -510,18 +719,6 @@ game = Game(400, 400)
 
 
 
-def gettex(path):
-	img = Image.open(path)
-	data = img.getdata()
-	tex = glGenTextures(1)
-	glBindTexture(GL_TEXTURE_2D, tex)
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img.size[0], img.size[1],
-	        0, GL_RGBA, GL_UNSIGNED_BYTE, img.tostring())
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-	print "Image loaded: " + str(img.size)
-#	img.show()
-	return tex
 
 def init():
 	global quadratic, enemyTex, turretTex, exploTex, explo2Tex
@@ -557,10 +754,10 @@ def display():
 
 	glFlush()
 
-	time.sleep(0.01)
+	time.sleep(1. / 60)
 
 	glutPostRedisplay()
-	print gc.get_count(), gc.garbage, len(game.enemies), len(game.bullets), len(game.effects)
+	#print gc.get_count(), gc.garbage, len(game.enemies), len(game.bullets), len(game.effects)
 
 mousestate = False
 mousepos = [0,0]
