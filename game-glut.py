@@ -150,6 +150,9 @@ class vec2(object):
 	def len(self):
 		return sqrt(self.slen())
 
+	def toarray(self):
+		return [self.x, self.y]
+
 def gettex(path, params = {}):
 	img = Image.open(path)
 	tex = glGenTextures(1)
@@ -319,6 +322,82 @@ class Tower(Entity):
 		self.game.removeTower(self)
 		self.game.effects.append(SpriteEffect(self.x, self.y, explo2Tex))
 
+
+class HealerTower(Tower):
+	""" Tower with capability to heal nearby towers """
+
+	def __init__(self,game,x,y):
+		Tower.__init__(self,game,x,y)
+
+	dispName = property(lambda self: "Healer")
+
+	def cost(self):
+		return ceil(1.5 ** len(self.game.towers) * 200)
+
+	healAmount = property(lambda self: 1 + 0.1 * self.level)
+
+	def shoot(self):
+		if self.target != None and self.target.health < self.target.maxHealth:
+			self.target.health = min(self.target.maxHealth, self.target.health + self.healAmount)
+			self.damage += self.healAmount
+			self.game.onHeal(self.target, self)
+			self.gainXp(3 * self.healAmount) # Healer has less opprtunity to gain experience than offensive towers, so gain high exp on healing
+			self.cooldown = ceil(4 + 320 / (10 + self.level))
+
+	def getDPS(self,frameTime):
+		return -self.healAmount / ceil(4 + 320 / (10 + self.level)) / frameTime
+
+	def update(self,dt):
+		towers = self.game.towers
+		damaged = None
+		heaviestDamage = 0
+		# Find the most damaged tower in the game
+		for t in towers:
+			# Do not allow healing itself and those out of range
+			if t == self or self.getRange() < t.measureDistance(self):
+				continue
+			damage = 1 - t.health / t.maxHealth
+			if heaviestDamage < damage:
+				heaviestDamage = damage
+				damaged = t
+		self.target = damaged
+
+		if self.target != None:
+			desiredAngle = atan2(self.target.y - self.y, self.target.x - self.x)
+			self.angle = rapproach(self.angle, desiredAngle, pi / 10.)
+			if self.cooldown <= 0 and abs(self.angle - desiredAngle) < pi / 10.:
+				self.shoot()
+
+		if 0 < self.cooldown:
+			self.cooldown -= 1
+
+		self.onUpdate(dt)
+
+		return True;
+
+	tex = None
+	texParams = {}
+
+	def draw(self):
+		# Load on first use
+		if HealerTower.tex == None:
+			HealerTower.tex = gettex("assets/healer.png", HealerTower.texParams)
+		glBindTexture(GL_TEXTURE_2D, HealerTower.tex)
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glRotated(self.angle * 180 / pi - 90, 0, 0, 1)
+		glColor3f(1,1,1)
+		glScaled(HealerTower.texParams["size"][0],HealerTower.texParams["size"][1],1)
+		glBegin(GL_QUADS)
+		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+		glPopMatrix()
+
+	def getRange(self):
+		return ceil((self.level + 10) * 5)
 
 class MissileTower(Tower):
 	""" Tower launching missiles """
@@ -639,6 +718,79 @@ class TrailEffect(Effect):
 				break
 		glEnd()
 
+class HealEffect(Effect):
+	maxLife = 2
+	life = maxLife
+	tess = None
+	
+	def __init__(self, target, src):
+		Effect.__init__(self, target.x, target.y)
+		self.target = target
+		self.src = src
+
+	def update(self,dt):
+		self.life -= dt
+		self.y += dt * 10
+		return 0 < self.life
+
+	@staticmethod
+	def MakeTess():
+		HealEffect.tess = gluNewTess()
+		if HealEffect.tess == None:
+			print "Can't make tessellator\n"
+			return
+		def TessErr(error_code):
+			print gluErrorString(error_code)
+		tess = HealEffect.tess
+		gluTessCallback(tess, GLU_TESS_BEGIN, glBegin)
+		gluTessCallback(tess, GLU_TESS_END, glEnd)
+		gluTessCallback(tess, GLU_TESS_ERROR, TessErr)
+		gluTessCallback(tess, GLU_TESS_VERTEX, glVertex2dv)
+
+	def draw(self):
+		if HealEffect.tess == None:
+			HealEffect.MakeTess()
+		glDisable(GL_TEXTURE_2D)
+		glDisable(GL_ALPHA_TEST)
+		glEnable(GL_BLEND)
+
+		glColor4f(0,1,0.5, self.life / self.maxLife)
+
+		glLineWidth(2)
+		glBegin(GL_LINES)
+		glVertex2dv(self.target.pos.toarray())
+		glVertex2dv(self.src.pos.toarray())
+		glEnd()
+
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		points = [[-10, -3],[-3, -3],[-3, -10],[3, -10],[3, -3],
+			[10, -3],[10, 3],[3, 3],[3, 10],[-3, 10],[-3, 3],[-10, 3]]
+		gluTessBeginPolygon(self.tess, None)
+		try:
+			gluTessBeginContour(self.tess)
+			try:
+				for p in points:
+					gluTessVertex(self.tess, p + [0], p)
+			finally:
+				gluTessEndContour(self.tess)
+		finally:
+			gluTessEndPolygon(self.tess)
+		glPopMatrix()
+	
+		glPushMatrix()
+		glColor4f(0,1,0.5, self.life / self.maxLife * 0.5)
+		glTranslated(self.src.x, self.src.y, 0)
+		scale = (self.maxLife - self.life) * 10
+		glScaled(scale, scale, 1)
+		glBegin(GL_POLYGON)
+		for i in range(0,32):
+			a = i*pi*2/32
+			glVertex2d(cos(a), sin(a))
+		glEnd()
+		glPopMatrix()
+
+
 def drawText(value, x,y):
 	"""Draw the given text at given 2D position in window """
 	glMatrixMode(GL_MODELVIEW);
@@ -684,6 +836,9 @@ class Game(object):
 			self.towers.append(tower)
 		for i in range(2):
 			tower = MissileTower(self, random() * 200 + 100, random() * 200 + 100)
+			self.towers.append(tower)
+		for i in range(2):
+			tower = HealerTower(self, random() * 200 + 100, random() * 200 + 100)
 			self.towers.append(tower)
 		for t in self.towers:
 			self.separateTower(t)
@@ -834,6 +989,8 @@ class Game(object):
 		b.onDelete()
 		return True
 
+	def onHeal(self, target, src):
+		self.effects.append(HealEffect(target, src))
 
 game = Game(500, 500)
 
