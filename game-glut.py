@@ -973,6 +973,7 @@ class Game(object):
 		self.stage = None
 		self.stageClear = True
 		self.highScores = []
+		self.backTex = {}
 
 		for i in range(3):
 			tower = Tower(self, random() * 200 + 150, random() * 200 + 150)
@@ -1066,6 +1067,22 @@ class Game(object):
 		self.bullets.append(b)
 
 	def draw(self):
+		if "tex" not in self.backTex:
+			gettex("assets/back2.jpg", self.backTex)
+		if self.backTex["tex"] != 0:
+			glBindTexture(GL_TEXTURE_2D, self.backTex["tex"])
+			glPushMatrix()
+			glEnable(GL_TEXTURE_2D)
+			glColor3f(1,1,1)
+			glScaled(self.width, self.height, 1)
+			glBegin(GL_QUADS)
+			glTexCoord2d(0,1); glVertex2d(0, 0)
+			glTexCoord2d(1,1); glVertex2d(1, 0)
+			glTexCoord2d(1,0); glVertex2d(1, 1)
+			glTexCoord2d(0,0); glVertex2d(0, 1)
+			glEnd()
+			glPopMatrix()
+
 		for t in self.towers:
 			t.draw()
 		for e in self.enemies:
