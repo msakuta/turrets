@@ -6,7 +6,7 @@ game-glut.py
 A Python port of turrets
 """
 
-import sys, numbers, gc, time
+import sys, numbers, gc, time, json
 from math import *
 from random import *
 
@@ -240,6 +240,28 @@ class Tower(Entity):
 	@staticmethod
 	def dispName():
 		return "Machine Gun";
+	
+	def serialize(self):
+		v = self
+		return dict(
+			className = v.__class__.__name__	,
+			kills = v.kills,
+			damage = v.damage,
+			x = v.x,
+			y = v.y,
+			angle = v.angle,
+			health = v.health,
+			level = v.level,
+			xp = v.xp
+		)
+
+	def deserialize(self,data):
+		self.angle = data["angle"]
+		self.kills = data["kills"]
+		self.damage = data["damage"]
+		self.health = data["health"]
+		if "level" in data: self.level = data["level"]
+		if "xp" in data: self.xp = data["xp"]
 
 	def shoot(self):
 		spd = 100
@@ -854,6 +876,40 @@ class Game(object):
 		for t in self.towers:
 			self.separateTower(t)
 
+	def serialize(self):
+		saveData = dict(credit = self.credit, highScores = self.highScores)
+		towers = []
+		for v in self.towers:
+			towers.append(v.serialize())
+		saveData["towers"] = towers
+		return json.dumps(saveData)
+
+	def deserialize(self,stream):
+		data = json.loads(stream)
+		if data != None:
+			self.highScores = data["highScores"]
+			self.credit = data["credit"]
+			self.towers = []
+			i = 0
+			for tow in data["towers"]:
+				if tow["className"] in globals():
+					classType = globals()[tow["className"]]
+					newTower = classType(self, tow["x"], tow["y"])
+					newTower.id = i
+					i += 1
+					newTower.deserialize(tow)
+					self.towers.append(newTower)
+					self.addTowerEvent(newTower)
+			self.bullets = []
+			self.enemies = []
+			self.effects = []
+			self.selectedTower = None
+		else:
+			self.towers = []
+			for i in range(3):
+				tower = Tower(self, random() * 200 + 150, random() * 200 + 150)
+				self.towers.append(tower)
+
 	def update(self,dt):
 		for t in self.towers:
 			t.update(dt)
@@ -1229,6 +1285,14 @@ def keyboard(key, x, y):
 		dist *= 1.1
 	if key == chr(27):
 		sys.exit(0)
+	if key == 's':
+		f = open("pysave.json", "w")
+		f.write(game.serialize())
+		f.close()
+	if key == 'l':
+		f = open("pysave.json")
+		game.deserialize(f.read())
+		f.close()
 
 def reshape (w, h):
 	global windowsize
