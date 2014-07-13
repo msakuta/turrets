@@ -167,7 +167,6 @@ class Entity(object):
 	game = None
 	pos = vec2(0,0)
 	velo = vec2(0,0)
-	health = 10
 	xp = 0
 	level = 1
 	team = 0
@@ -177,12 +176,17 @@ class Entity(object):
 		self.game = game
 		self.x = x
 		self.y = y
+		self.health = self.maxHealth
 
 	def _set_pos(self,v): self.x=v[0], self.y=v[1]
+		
+	def _getMaxHealth(self):
+		return 10
 
 	pos = property(lambda self: vec2(self.x, self.y), _set_pos, None)
 	
 	nextXp = property(lambda self: ceil(1.5 ** self.level * 100));
+	maxHealth = property(_getMaxHealth)
 
 	def getRot(self,angle):
 		return [cos(angle), sin(angle), -sin(angle), cos(angle)]
@@ -210,7 +214,7 @@ class Tower(Entity):
 	def __init__(self,game,x,y):
 		Entity.__init__(self,game,x,y)
 		self.angle = 0
-		self.health = 10
+		self.health = self.maxHealth
 		self.target = None
 		self.id = Tower.idGen
 		Tower.idGen += 1
@@ -219,7 +223,7 @@ class Tower(Entity):
 		self.damage = 0
 		print "init " + str(self.id)
 
-	def maxHealth(self):
+	def _getMaxHealth(self):
 		return ceil(pow(1.2, self.level)) * 10
 
 	def getShootTolerance(self):
@@ -283,6 +287,12 @@ class Tower(Entity):
 
 		return True
 
+	def gainXp(self,xp):
+		self.xp += xp;
+		while self.nextXp <= self.xp:
+			self.level += 1
+			self.health = self.maxHealth # Fully recover
+
 	def draw(self):
 		global turretTex
 		glBindTexture(GL_TEXTURE_2D, turretTex)
@@ -299,8 +309,10 @@ class Tower(Entity):
 		glEnd()
 		glPopMatrix()
 
-	def onKill(self,o):
+	def onKill(self,e):
 		self.kills += 1
+		self.gainXp(e.maxHealth)
+
 
 class MissileTower(Tower):
 	""" Tower launching missiles """
@@ -317,11 +329,12 @@ class MissileTower(Tower):
 		return pi
 	stickiness = 3
 
-	def maxHealth(self):
+	def _getMaxHealth(self):
 		return ceil(pow(1.2, self.level) * 25)
+	
+	maxHealth = property(_getMaxHealth)
 
-	def maxXp(self):
-		return ceil(pow(1.5, self.level-1) * 500)
+	nextXp = property(lambda(self): ceil(1.5 ** (self.level-1) * 500))
 
 	def dispName(self):
 		return "MissileTower"
@@ -745,14 +758,14 @@ class Game(object):
 				glVertex2d(50, -100)
 				glVertex2d(-50, -100)
 				glEnd()
-			drawText("Kills: %d\n" % t.kills
-					 + "Damage: %d\n" % t.damage
-					 + "Health: %d\n" % t.health
-					 + "Level: %d\n" % t.level
-					 + "XP: %d/%d\n" % (t.xp, t.nextXp)
-					 + "Range: %s\n" % str(t.getRange())
-					 + "DPS: %d\n" % t.getDPS(1. / 60.)
-					 , t.x - 45, t.y - 20)
+			text = "Kills: %d\n" % t.kills
+			text += "Damage: %g\n" % ceil(t.damage)
+			text += "Health: %g/%g\n" % (ceil(t.health), ceil(t.maxHealth))
+			text += "Level: %d\n" % t.level
+			text += "XP: %d/%d\n" % (t.xp, t.nextXp)
+			text += "Range: %s\n" % str(t.getRange())
+			text += "DPS: %g\n" % t.getDPS(1. / 60.)
+			drawText(text, t.x - 45, t.y - 20)
 			glPopMatrix()
 
 	def selectTower(self,pos):
