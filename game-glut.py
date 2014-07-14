@@ -44,14 +44,14 @@ def approach(src, dst, delta, wrap):
 			return dst
 		elif wrap and wrap / 2 < dst - src:
 			ret = src - delta - floor((src - delta) / wrap) * wrap
-			return src < ret and (dst if ret < dst else ret)
+			return dst if src < ret and ret < dst else ret
 		return src + delta
 	else:
 		if src - dst < delta:
 			return dst
 		elif wrap and wrap / 2 < src - dst:
 			ret = src + delta - floor((src + delta) / wrap) * wrap
-			return ret < src and dst if dst < ret else ret
+			return dst if ret < src and dst < ret else ret
 		else:return src - delta;
 
 def rapproach(src, dst, delta):
