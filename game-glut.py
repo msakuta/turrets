@@ -1157,7 +1157,7 @@ class Game(object):
 		self.progress = 0
 		self.stage = None
 		self.stageClear = True
-		self.highScores = []
+		self.highScores = {}
 		self.backTex = {}
 
 		for i in range(3):
@@ -1203,6 +1203,20 @@ class Game(object):
 				tower = Tower(self, random() * 200 + 150, random() * 200 + 150)
 				self.towers.append(tower)
 
+	def startStage(self,stage):
+		self.progress = abs(stage * self.stageTime)
+		self.stage = stage
+		self.stageClear = False
+		self.score = 0
+		# Restore health on stage start
+		for v in self.towers:
+			v.health = v.maxHealth
+
+	def getStageProgress(self):
+		if self.stage == None:
+			return 0
+		return (self.progress - abs(self.stage * self.stageTime)) / self.stageTime
+
 	def update(self,dt):
 		for t in self.towers:
 			t.update(dt)
@@ -1213,7 +1227,28 @@ class Game(object):
 		for e in self.effects:
 			if not e.update(dt):
 				self.effects.remove(e)
-		genCount = random
+
+		# Prevent enemies from generating when the game is over or the stage is clear
+		if self.isGameOver() or self.stageClear:
+			return
+
+		# Check if the stage finishes
+		if (abs(self.stage) + 1) * self.stageTime <= self.progress:
+			if self.stage < 0:
+				self.stage -= 1
+			else:
+				if not self.isGameOver() and not self.stageClear:
+					self.stageClear = True
+					astage = str(abs(self.stage))
+					if astage not in self.highScores or self.highScores[astage] < self.score:
+						self.highScores[astage] = self.score
+
+					f = open("pyautosave.json", "w")
+					f.write(self.serialize())
+					f.close()
+
+					self.onStageClear()
+				return
 
 		""" A pseudo-random number generator distributed in Poisson distribution.
 		 It uses Knuth's algorithm, which is not optimal when lambda gets
@@ -1414,10 +1449,20 @@ class Game(object):
 		global exploBlueTex
 		self.effects.append(SpriteEffect(x, y, exploBlueTex))
 
+	def onStageClear(self): pass
+
 	def isGameOver(self):
 		return len(self.towers) == 0
 
 game = Game(500, 500)
+
+try:
+	# Try to load from last auto saved game
+	f = open("pyautosave.json")
+	game.deserialize(f.read())
+	f.close()
+except:
+	print "Autosave data load failed."
 
 boughtTower = None
 
@@ -1439,10 +1484,10 @@ class Button(object):
 		for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
 			glColor4fv(i[0])
 			glBegin(i[1])
-			glVertex2d(-15, -15)
-			glVertex2d(15, -15)
-			glVertex2d(15, 15)
-			glVertex2d(-15, 15)
+			glVertex2d(0, 0)
+			glVertex2d(self.width, 0)
+			glVertex2d(self.width, self.height)
+			glVertex2d(0, self.height)
 			glEnd()
 		self.drawContents()
 		glPopMatrix()
@@ -1450,7 +1495,8 @@ class Button(object):
 	def drawContents(self): pass
 
 	def hitTest(self,pos):
-		return abs(pos[0] - self.x) < 15 and abs(pos[1] - self.y) < 15
+		return (self.x <= pos[0] and pos[0] <= self.x + self.width and
+			self.y <= pos[1] and pos[1] <= self.y + self.height)
 
 	def pressmove(self,evt): pass
 	def pressup(self): pass
@@ -1474,7 +1520,7 @@ class ImageButton(Button):
 		global selectedButton
 		if selectedButton == self:
 			glDisable(GL_TEXTURE_2D)
-			glTranslated(-155, 0, 0)
+			glTranslated(-135, self.height, 0)
 			for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
 				glColor4fv(i[0])
 				glBegin(i[1])
@@ -1483,7 +1529,7 @@ class ImageButton(Button):
 				glVertex2d(130, 15)
 				glVertex2d(0, 15)
 				glEnd()
-			drawText(self.hintText(), self.x - 150, self.y)
+			drawText(self.hintText(), self.x - 130, self.y + self.height)
 		glPopMatrix()
 
 	def hintText(self):
@@ -1496,6 +1542,7 @@ class ImageButton(Button):
 		glBindTexture(GL_TEXTURE_2D, self.tex)
 		glEnable(GL_TEXTURE_2D)
 		glColor4fv(self.getColor())
+		glTranslated(self.width * 0.5, self.height * 0.5, 0)
 		glScaled(self.width * 0.6, self.height * 0.6, 1)
 		glBegin(GL_QUADS)
 		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
@@ -1567,6 +1614,33 @@ class TrashCan(ImageButton):
 			game.removeTower(game.selectedTower)
 			game.selectedTower = None
 
+class SelectStageButton(Button):
+	""" A button to select a stage level """
+	def __init__(self,x,y,width,height,stage,text):
+		super(SelectStageButton, self).__init__(x,y,width,height)
+		self.stage = stage
+		self.text = text
+
+	showMenu = property(lambda self: game.isGameOver() or game.stageClear)
+
+	def draw(self):
+		if self.showMenu:
+			super(SelectStageButton, self).draw()
+
+	def drawContents(self):
+		text = self.text
+		astage = str(abs(self.stage))
+		if astage in game.highScores:
+			text += "\nHigh score: " + str(game.highScores[astage])
+		else:
+			text += "\nHigh score: undefined"
+		drawText(text, self.x + 5., self.y + self.height - 12)
+
+	def pressup(self):
+		if self.showMenu:
+			game.startStage(self.stage)
+			showMenu = False
+
 buttons = []
 selectedButton = None
 windowsize = [500, 500]
@@ -1580,12 +1654,18 @@ def init():
 	explo2Tex = {"tex": gettex("assets/explode2.png"), "totalFrames": 6, "size": 32, "speed": 1}
 	exploBlueTex = {"tex": gettex("assets/explode_blue.png"), "totalFrames": 8, "size": 16, "speed": 2}
 	global windowsize
-	buttons.append(BuyButton(Tower, "assets/turret.png", windowsize[0] - 30, windowsize[1] - 30))
-	buttons.append(BuyButton(ShotgunTower, "assets/shotgun.png", windowsize[0] - 30, windowsize[1] - 60))
-	buttons.append(BuyButton(HealerTower, "assets/Healer.png", windowsize[0] - 30, windowsize[1] - 90))
-	buttons.append(BuyButton(BeamTower, "assets/BeamTower.png", windowsize[0] - 30, windowsize[1] - 120))
-	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 30, windowsize[1] - 150))
-	buttons.append(TrashCan(windowsize[0] - 30, 30))
+	y = windowsize[1] - 48
+	buttons.append(BuyButton(Tower, "assets/turret.png", windowsize[0] - 48, y)); y -= 32
+	buttons.append(BuyButton(ShotgunTower, "assets/shotgun.png", windowsize[0] - 48, y)); y -= 32
+	buttons.append(BuyButton(HealerTower, "assets/Healer.png", windowsize[0] - 48, y)); y -= 32
+	buttons.append(BuyButton(BeamTower, "assets/BeamTower.png", windowsize[0] - 48, y)); y -= 32
+	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 48, y))
+	buttons.append(TrashCan(windowsize[0] - 48, 16))
+
+	y = windowsize[1] - 48
+	for v in ["0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard", "10 - Insane", "-1 - Endurance mode"]:
+		buttons.append(SelectStageButton(windowsize[0] / 2 - 100, y, 200, 35, int(v.split()[0]), v))
+		y -= 35
 
 def display():
 	game.update(0.1)
@@ -1601,7 +1681,24 @@ def display():
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); # Alpha blend
 
 	game.draw()
-	
+
+	# Draw progress bar of the stage at the bottom of the screen
+	barHeight = 5
+	glDisable(GL_ALPHA_TEST)
+	glDisable(GL_CULL_FACE)
+	glBegin(GL_QUADS)
+	glColor3f(1,0,0)
+	glVertex2d(0,0)
+	glVertex2d(windowsize[0],0)
+	glVertex2d(windowsize[0],barHeight)
+	glVertex2d(0,barHeight)
+	glColor3f(0,1,0)
+	glVertex2d(0,0)
+	glVertex2d(game.getStageProgress()*windowsize[0],0)
+	glVertex2d(game.getStageProgress()*windowsize[0],barHeight)
+	glVertex2d(0,barHeight)
+	glEnd()
+
 	for b in buttons:
 		b.draw()
 
