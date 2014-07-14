@@ -1421,15 +1421,13 @@ game = Game(500, 500)
 
 boughtTower = None
 
-class BuyButton(object):
-	""" Display element representing buy button """
-	def __init__(self,classType,imagePath,x,y):
-		self.classType = classType
-		self.imagePath = imagePath
+class Button(object):
+	""" Elementary Button """
+	def __init__(self,x,y,width,height):
 		self.x = x
 		self.y = y
-		self.tex = None
-		self.texParams = {}
+		self.width = width
+		self.height = height
 
 	def draw(self):
 		glPushMatrix()
@@ -1446,22 +1444,33 @@ class BuyButton(object):
 			glVertex2d(15, 15)
 			glVertex2d(-15, 15)
 			glEnd()
-		# Load on first use
-		if self.tex == None:
-			self.tex = gettex(self.imagePath, self.texParams)
-		glBindTexture(GL_TEXTURE_2D, self.tex)
-		glEnable(GL_TEXTURE_2D)
-		glColor4f(1,1,1, 1 if self.classType.cost() < game.credit else 0.5)
-		glPushMatrix()
-		glScaled(self.texParams["size"][0],self.texParams["size"][1],1)
-		glBegin(GL_QUADS)
-		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
-		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
-		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
-		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
-		glEnd()
+		self.drawContents()
 		glPopMatrix()
+
+	def drawContents(self): pass
+
+	def hitTest(self,pos):
+		return abs(pos[0] - self.x) < 15 and abs(pos[1] - self.y) < 15
+
+	def pressmove(self,evt): pass
+	def pressup(self): pass
+	def update(self,dt): pass
+
+class ImageButton(Button):
+	""" Display element representing a button """
+	def __init__(self,imagePath,x,y,width=32,height=32):
+		super(ImageButton, self).__init__(x,y,width,height)
+		self.imagePath = imagePath
+		self.tex = None
+		self.texParams = {}
 		
+	def getColor(self):
+		return [1,1,1,1]
+
+	def draw(self):
+		super(ImageButton, self).draw()
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
 		global selectedButton
 		if selectedButton == self:
 			glDisable(GL_TEXTURE_2D)
@@ -1474,15 +1483,41 @@ class BuyButton(object):
 				glVertex2d(130, 15)
 				glVertex2d(0, 15)
 				glEnd()
-			text = self.classType.dispName() + "\n"
-			text += "Cost: %g\n" % self.classType.cost()
-			text += "Drag & Drop to buy"
-			drawText(text, self.x - 150, self.y)
-
+			drawText(self.hintText(), self.x - 150, self.y)
 		glPopMatrix()
 
-	def hitTest(self,pos):
-		return abs(pos[0] - self.x) < 15 and abs(pos[1] - self.y) < 15
+	def hintText(self):
+		return ""
+
+	def drawContents(self):
+		# Load on first use
+		if self.tex == None:
+			self.tex = gettex(self.imagePath, self.texParams)
+		glBindTexture(GL_TEXTURE_2D, self.tex)
+		glEnable(GL_TEXTURE_2D)
+		glColor4fv(self.getColor())
+		glScaled(self.width * 0.6, self.height * 0.6, 1)
+		glBegin(GL_QUADS)
+		glTexCoord2d(0,1); glVertex2d(-0.5, -0.5)
+		glTexCoord2d(1,1); glVertex2d( 0.5, -0.5)
+		glTexCoord2d(1,0); glVertex2d( 0.5,  0.5)
+		glTexCoord2d(0,0); glVertex2d(-0.5,  0.5)
+		glEnd()
+
+class BuyButton(ImageButton):
+	""" Display element representing buy button """
+	def __init__(self,classType,imagePath,x,y):
+		super(BuyButton, self).__init__(imagePath,x,y)
+		self.classType = classType
+
+	def getColor(self):
+		return [1,1,1, 1 if self.classType.cost() < game.credit else 0.5]
+
+	def hintText(self):
+		text = self.classType.dispName() + "\n"
+		text += "Cost: %g\n" % self.classType.cost()
+		text += "Drag & Drop to buy"
+		return text
 
 	def pressmove(self,evt):
 		global boughtTower, mousepos
@@ -1503,14 +1538,34 @@ class BuyButton(object):
 			boughtTower.onUpdate(0)
 
 	def pressup(self):
+		# Ignore pressup events if it's not selected
+		#if selectedButton != self:
+#			return
 		global boughtTower
 		game.moving = False
 		if boughtTower != None:
 			game.separateTower(boughtTower)
 			boughtTower = None
+			selectedTower = None
 
 	def update(self,dt):
 		buyTip.texts[1].text = "Cost: " + formatVal(classType.prototype.cost(), 5);
+
+class TrashCan(ImageButton):
+	""" A trash can pseudo button which accepts drag'n'dropped towers for removing. """
+
+	def __init__(self,x,y):
+		super(TrashCan, self).__init__(imagePath = "assets/trashcan.png", x=x, y=y)
+
+	def hintText(self):
+		text = "Drag & Drop a tower\n"
+		text += "here to delete"
+		return text
+
+	def pressup(self):
+		if game.selectedTower != None:
+			game.removeTower(game.selectedTower)
+			game.selectedTower = None
 
 buttons = []
 selectedButton = None
@@ -1530,6 +1585,7 @@ def init():
 	buttons.append(BuyButton(HealerTower, "assets/Healer.png", windowsize[0] - 30, windowsize[1] - 90))
 	buttons.append(BuyButton(BeamTower, "assets/BeamTower.png", windowsize[0] - 30, windowsize[1] - 120))
 	buttons.append(BuyButton(MissileTower, "assets/MissileTower.png", windowsize[0] - 30, windowsize[1] - 150))
+	buttons.append(TrashCan(windowsize[0] - 30, 30))
 
 def display():
 	game.update(0.1)
@@ -1577,7 +1633,12 @@ def mouse(button, state, x, y):
 				if b.hitTest(mousepos):
 					selectedButton = b
 	elif selectedButton != None and not selectedButton.hitTest(mousepos):
+		# Notify last selected button that the mouse button is up.
 		selectedButton.pressup()
+	else:
+		for b in buttons:
+			if b.hitTest(mousepos):
+				b.pressup()
 
 def motion(x, y):
 	global mousepos
