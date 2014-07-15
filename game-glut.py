@@ -638,6 +638,7 @@ class Bullet(Entity):
 		self.damage = 1
 		self.vanished = False
 		self.alive = True
+		self.life = 5
 
 	def update(self,dt):
 		self.x += self.vx * dt;
@@ -651,7 +652,10 @@ class Bullet(Entity):
 				self.game.removeBullet(self)
 				return 0
 		self.onUpdate(dt);
-		if 0 < self.x and self.x < self.game.width and 0 < self.y and self.y < self.game.height:
+		if(-self.game.width * 0.5 < self.x and self.x < self.game.width * 1.5
+		   and -self.game.height * 0.5 < self.y and self.y < self.game.height * 1.5
+		   and 0 < self.life):
+			self.life -= dt
 			return 1
 		else:
 			# Hitting edge won't trigger bullet hit effect
