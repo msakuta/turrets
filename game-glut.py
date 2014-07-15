@@ -29,11 +29,11 @@ ERROR: PIL not installed properly.
 # Utility 2D matrix functions
 def matvp(m,v):
 	""" Matrix Vector product """
-	return [m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]]
+	return vec2(m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1])
 
 def mattvp(m,v):
 	""" Matrix Transpose Vector product """
-	return [m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1]]
+	return vec2(m[0] * v[0] + m[2] * v[1], m[1] * v[0] + m[3] * v[1])
 
 
 
@@ -176,6 +176,7 @@ class Entity(object):
 	level = 1
 	team = 0
 	radius = 10
+	damage = 0
 
 	def __init__(self,game,x,y):
 		self.game = game
@@ -959,6 +960,123 @@ class MissileEnemy(Enemy4):
 			MissileEnemy.tex = gettex("assets/MissileEnemy.png", MissileEnemy.texParams)
 		return MissileEnemy.texParams
 
+class BattleShipEnemy(Enemy):
+	""" \brief Missile launcher enemy """
+
+	def __init__(self,game,x,y):
+		super(BattleShipEnemy, self).__init__(game,x,y)
+		self.health = self.maxHealth
+		self.radius = 64
+		self.credit = ceil(random() * 12500)
+		self.angle = 0
+		self.target = None
+		self.cooldown = 30
+		self.shootPhase = 0
+		self.turrets = [
+			self.BattleShipTurret(self, 40, 0),
+			self.BattleShipTurret(self, 15, 0),
+			self.BattleShipTurret(self, -35, 0),
+		]
+
+	maxHealth = property(lambda self: 50000)
+
+	class BattleShipTurret(Entity):
+		""" Internal class of BattleShipEnemy which represents a turret onboard. """
+		def __init__(self, owner, x, y):
+			super(BattleShipEnemy.BattleShipTurret, self).__init__(owner.game, x, y)
+			self.owner = owner
+			self.team = 1
+			self.target = None
+			self.cooldown = 15
+
+		def shoot(self,dt):
+			spd = 100.
+			angle = self.angle + (random() - 0.5) * pi * 0.05
+			baseMat = self.owner.getRot(self.owner.angle)
+			basePos = mattvp(baseMat, [self.x, self.y]) + self.owner.pos
+			mat = self.getRot(angle)
+			jointAngle = self.owner.angle + self.angle
+			jointMat = self.owner.getRot(jointAngle)
+			for i in [-1,1]:
+				pos = mattvp(jointMat, [0, i * 6]) + basePos
+				b = Bullet(game, pos[0], pos[1],
+					spd * jointMat[0], spd * jointMat[1], jointAngle, self)
+				b.damage = 5
+				game.addBullet(b)
+			self.cooldown = 10
+
+		def update(self,dt):
+			if self.target == None and len(self.game.towers) != 0:
+				self.target = choice(self.game.towers)
+
+			if self.target != None and 0 < self.target.health:
+				baseMat = self.owner.getRot(self.owner.angle)
+				basePos = mattvp(baseMat, [self.x, self.y]) + self.owner.pos
+				dv = self.target.pos - basePos
+				dvlen = sqrt(dv[0] * dv[0] + dv[1] * dv[1])
+				if 0 < dvlen:
+					self.angle = rapproach(self.angle, atan2(dv[1], dv[0]) - self.owner.angle, pi * 0.1);
+			if 0 < self.cooldown:
+				self.cooldown -= 1
+
+			if self.target != None and self.cooldown == 0:
+				self.shoot(dt)
+
+		tex = None
+		texParams = {}
+		def getTexture(self):
+			# Load on first use
+			if BattleShipEnemy.BattleShipTurret.tex == None:
+				BattleShipEnemy.BattleShipTurret.tex = gettex("assets/BattleShipTurret.png", BattleShipEnemy.BattleShipTurret.texParams)
+			return BattleShipEnemy.BattleShipTurret.texParams
+
+	rotateSpeed = pi * 0.01
+
+	def update(self,dt):
+
+		if self.target == None and len(self.game.towers) != 0:
+			self.target = choice(self.game.towers)
+
+		if self.target != None and 0 < self.target.health:
+			dv = [self.target.x - self.x, self.target.y - self.y]
+			dvlen = sqrt(dv[0] * dv[0] + dv[1] * dv[1])
+			if 0 < dvlen:
+				self.angle = rapproach(self.angle, atan2(dv[1], dv[0]) + (dvlen < 200) * pi / 2, self.rotateSpeed)
+			mat = self.getRot(self.angle)
+			self.vx = 5 * mat[0]
+			self.vy = 5 * mat[1]
+		else:
+			self.target = None
+			self.vx *= 0.9
+			self.vy *= 0.9
+
+		self.x += self.vx * dt
+		self.y += self.vy * dt
+
+		for v in self.turrets:
+			v.update(dt)
+
+		self.onUpdate(dt)
+
+		return True
+
+	def draw(self):
+		super(BattleShipEnemy, self).draw()
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glRotated(self.angle * 180 / pi, 0, 0, 1)
+		for v in self.turrets:
+			v.draw()
+		glPopMatrix()
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if BattleShipEnemy.tex == None:
+			BattleShipEnemy.tex = gettex("assets/BattleShip.png", BattleShipEnemy.texParams)
+		return BattleShipEnemy.texParams
+
 class Effect(object):
 	def __init__(self,x,y):
 		self.x = x
@@ -1134,6 +1252,7 @@ class Game(object):
 		{"type": Enemy3, "waves": 10, "freq": lambda f: (f * 5000 + 10000) / 10000000},
 		{"type": Enemy4, "waves": 20, "freq": lambda f: (f * 5000 + 10000) / 10000000},
 		{"type": MissileEnemy, "waves": 40, "freq": lambda f: (f * 5000 + 10000) / 20000000},
+		{"type": BattleShipEnemy, "waves": 50, "freq": lambda f: (f * 5000 + 10000) / 50000000},
 	];
 
 	def __init__(self, width, height):
