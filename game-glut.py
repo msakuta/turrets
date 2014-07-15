@@ -465,7 +465,48 @@ class HealerTower(Tower):
 	def getRange(self):
 		return ceil((self.level + 10) * 5)
 
-class BeamTower(Tower):
+class BeamShooter(object):
+	""" Class to multiply-inherited for sharing shootBeam method between enemy and tower. """
+	def shootBeam(self,dt):
+		enemies = self.game.enemies if isinstance(self, BeamTower) else self.game.towers
+		angle = self.angle
+		mat = self.getRot(angle)
+		# The beam penetrates through all enemies (good against crowd)
+		for e in enemies:
+			# Distance of the target from the beam axis
+			dotx = (e.x - self.x) * mat[2] + (e.y - self.y) * mat[3]
+			# Position of the target along the beam axis
+			doty = (e.x - self.x) * mat[0] + (e.y - self.y) * mat[1]
+			# Check intersection of the beam with the target
+			if abs(dotx) < e.radius + 10 and 0 <= doty and doty < self.beamLength + e.radius:
+				self.damage += self.getDamage()
+				self.game.onBeamHit(e.x, e.y)
+				if e.receiveDamage(self.getDamage()):
+					self.onKill(e)
+
+	def drawBeam(self, outerColor, innerColor):
+		if 0 < self.shootPhase:
+			glPushMatrix()
+			glTranslated(self.x, self.y, 0)
+			glRotated(self.angle * 180 / pi, 0, 0, 1)
+			glScaled(self.beamLength, self.beamWidth * 0.5, 1)
+			glDisable(GL_TEXTURE_2D)
+			glDisable(GL_ALPHA_TEST)
+			glEnable(GL_BLEND)
+			glBegin(GL_QUAD_STRIP)
+			glColor4fv(outerColor)
+			glVertex2d(0, -1)
+			glVertex2d(1, -1)
+			glColor4fv(innerColor)
+			glVertex2d(0, 0)
+			glVertex2d(1, 0)
+			glColor4fv(outerColor)
+			glVertex2d(0, 1)
+			glVertex2d(1, 1)
+			glEnd()
+			glPopMatrix()
+
+class BeamTower(Tower,BeamShooter):
 	""" Tower with a beam cannon which penetrates through enemies """
 	
 	def __init__(self,game,x,y):
@@ -509,23 +550,10 @@ class BeamTower(Tower):
 			self.shootBeam(dt)
 			self.shootPhase -= 1
 		return True
-
-	def shootBeam(self,dt):
-		enemies = self.game.enemies if isinstance(self, BeamTower) else self.game.towers
-		angle = self.angle
-		mat = self.getRot(angle)
-		# The beam penetrates through all enemies (good against crowd)
-		for e in enemies:
-			# Distance of the target from the beam axis
-			dotx = (e.x - self.x) * mat[2] + (e.y - self.y) * mat[3]
-			# Position of the target along the beam axis
-			doty = (e.x - self.x) * mat[0] + (e.y - self.y) * mat[1]
-			# Check intersection of the beam with the target
-			if abs(dotx) < e.radius + 10 and 0 <= doty and doty < self.beamLength + e.radius:
-				self.damage += self.getDamage()
-				self.game.onBeamHit(e.x, e.y)
-				if e.receiveDamage(self.getDamage()):
-					self.onKill(e);
+	
+	def draw(self):
+		super(BeamTower, self).draw()
+		self.drawBeam([1, 0.5, 1, 0], [1, 0.5, 1, 1])
 
 	tex = None
 	texParams = {}
@@ -534,29 +562,6 @@ class BeamTower(Tower):
 		if BeamTower.tex == None:
 			BeamTower.tex = gettex("assets/BeamTower.png", BeamTower.texParams)
 		return BeamTower.texParams
-	
-	def draw(self):
-		Tower.draw(self)
-		if 0 < self.shootPhase:
-			glPushMatrix()
-			glTranslated(self.x, self.y, 0)
-			glRotated(self.angle * 180 / pi, 0, 0, 1)
-			glScaled(self.beamLength, self.beamWidth * 0.5, 1)
-			glDisable(GL_TEXTURE_2D)
-			glDisable(GL_ALPHA_TEST)
-			glEnable(GL_BLEND)
-			glBegin(GL_QUAD_STRIP)
-			glColor4f(1, 0.5, 1, 0)
-			glVertex2d(0, -1)
-			glVertex2d(1, -1)
-			glColor4f(1, 0.5, 1, 1)
-			glVertex2d(0, 0)
-			glVertex2d(1, 0)
-			glColor4f(1, 0.5, 1, 0)
-			glVertex2d(0, 1)
-			glVertex2d(1, 1)
-			glEnd()
-			glPopMatrix()
 
 class MissileTower(Tower):
 	""" Tower launching missiles """
@@ -926,6 +931,72 @@ class Enemy4(Enemy):
 			Enemy4.tex = gettex("assets/enemy4.png", Enemy4.texParams)
 		return Enemy4.texParams
 
+class BeamEnemy(Enemy4,BeamShooter):
+	""" \brief Tier 4 enemy with higher health and credit """
+	def __init__(self,game,x,y):
+		super(BeamEnemy, self).__init__(game,x,y)
+		self.health = self.maxHealth
+		self.radius = 24
+		self.credit = ceil(random() * 500)
+		self.angle = 0
+		self.target = None
+		self.cooldown = 15
+		self.shootPhase = 0
+
+	maxHealth = property(lambda self: 2500)
+	beamLength = 400
+	beamWidth = 8
+
+	def getDamage(self): return 0.2
+
+	def update(self,dt):
+		if self.target == None and len(self.game.towers) != 0:
+			self.target = choice(self.game.towers)
+
+		if self.target != None and 0 < self.target.health:
+			dv = [self.target.x - self.x, self.target.y - self.y]
+			dvlen = sqrt(dv[0] * dv[0] + dv[1] * dv[1])
+			if 0 < dvlen:
+				dv[0] /= dvlen
+				dv[1] /= dvlen
+				rspeed = dv[0] * self.vx + dv[1] * self.vy
+				# Make the ship stop at distance of 100 from target
+				dvlen -= 10 * rspeed + 150
+				self.vx += (dv[0] * dvlen) * 0.1 * dt
+				self.vy += (dv[1] * dvlen) * 0.1 * dt
+				self.angle = rapproach(self.angle, atan2(self.target.y - self.y, self.target.x - self.x), pi * 0.1)
+		else:
+			self.target = None
+			self.vx *= 0.9
+			self.vy *= 0.9
+
+		self.x += self.vx * dt
+		self.y += self.vy * dt
+
+		if 0 < self.cooldown:
+			self.cooldown -= 1
+
+		if self.target != None and self.cooldown == 0:
+			self.shootPhase = 30
+			self.cooldown = 90
+		if 0 < self.shootPhase:
+			self.shootBeam(dt)
+			self.shootPhase -= 1
+		self.onUpdate(dt)
+		return True
+
+	def draw(self):
+		super(BeamEnemy, self).draw()
+		self.drawBeam([0,0.5,1,0], [0,0.5,1,1])
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if BeamEnemy.tex == None:
+			BeamEnemy.tex = gettex("assets/BeamEnemy.png", BeamEnemy.texParams)
+		return BeamEnemy.texParams
+
 class MissileEnemy(Enemy4):
 	""" \brief Missile launcher enemy """
 	def __init__(self,game,x,y):
@@ -1251,6 +1322,7 @@ class Game(object):
 		{"type": Enemy2, "waves": 5, "freq": lambda f: (f * 5000 + 10000) / 10000000 if f < 40 else 0.001 / (f - 40 + 1)},
 		{"type": Enemy3, "waves": 10, "freq": lambda f: (f * 5000 + 10000) / 10000000},
 		{"type": Enemy4, "waves": 20, "freq": lambda f: (f * 5000 + 10000) / 10000000},
+		{"type": BeamEnemy, "waves": 30, "freq": lambda f: (f * 5000 + 10000) / 20000000},
 		{"type": MissileEnemy, "waves": 40, "freq": lambda f: (f * 5000 + 10000) / 20000000},
 		{"type": BattleShipEnemy, "waves": 50, "freq": lambda f: (f * 5000 + 10000) / 50000000},
 	];
@@ -1565,7 +1637,11 @@ class Game(object):
 		self.effects.append(HealEffect(target, src))
 		
 	def onBeamHit(self, x, y):
+		if randint(0,3) != 0:
+			return
 		global exploBlueTex
+		x += (random() + random() - 1.) * 10;
+		y += (random() + random() - 1.) * 10;
 		self.effects.append(SpriteEffect(x, y, exploBlueTex))
 
 	def onStageClear(self): pass
