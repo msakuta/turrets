@@ -7,6 +7,8 @@ var width;
 var height;
 var game;
 var backImage = new createjs.Bitmap("assets/back2.jpg");
+var checkedImage = new createjs.Bitmap("assets/checked.png");
+var lockedImage = new createjs.Bitmap("assets/locked.png");
 
 var explosionSpriteTemplate;
 var hitSpriteTemplate;
@@ -71,6 +73,8 @@ function init(){
 	queue.loadFile("assets/back2.jpg");
 	queue.loadFile("assets/Missile.png");
 	queue.loadFile("assets/trashcan.png");
+	queue.loadFile("assets/checked.png");
+	queue.loadFile("assets/locked.png");
 
 	queue.on("progress", function(event) {
 		progressBar.scaleX = queue.progress;
@@ -766,25 +770,34 @@ function SelectStageButton(level, text){
 	mouseOverFrame.alpha = 0.5;
 	mouseOverFrame.visible = false;
 	this.addChild(mouseOverFrame);
+	this.checkIcon = checkedImage.clone();
+	this.checkIcon.x = 5;
+	this.checkIcon.y = 5;
+	this.addChild(this.checkIcon);
+	this.lockedIcon = lockedImage.clone();
+	this.lockedIcon.x = 5;
+	this.lockedIcon.y = 5;
+	this.addChild(this.lockedIcon);
 	this.buttonText = new createjs.Text(text, "bold 24px Helvetica", "#ffffff");
-	this.buttonText.x = 5;
+	this.buttonText.x = 37;
 	this.buttonText.y = 5;
 //		this.buttonImage.hitArea = buyButtonFrame;
 	this.addChild(this.buttonText);
 	this.scoreText = new createjs.Text("High score: ???", "bold 12px Helvetica", "#ffffff");
-	this.scoreText.x = 5;
+	this.scoreText.x = 37;
 	this.scoreText.y = 30;
 //		this.buttonImage.hitArea = buyButtonFrame;
 	this.addChild(this.scoreText);
 
 	this.on("click", function(evt){
-		if(!game.isGameOver() && !game.stageClear)
+		if(!game.isGameOver() && !game.stageClear || this.lockedIcon.visible)
 			return;
 		game.startStage(level);
 		showMenu.menu.visible = false;
 	});
 	this.on("mouseover", function(evt){
-		mouseOverFrame.visible = true;
+		if(!this.lockedIcon.visible)
+			mouseOverFrame.visible = true;
 	});
 	this.on("mouseout", function(evt){
 		mouseOverFrame.visible = false;
@@ -792,6 +805,9 @@ function SelectStageButton(level, text){
 
 	this.updateHighScores = function(){
 		this.scoreText.text = "High score: " + game.highScores[level];
+		this.checkIcon.visible = game.highScores[level];
+		this.lockedIcon.visible = !game.highScores[level] && 1 < level && !game.highScores[level-1];
+		this.buttonText.color = this.checkIcon.visible ? "#9fffbf" : this.lockedIcon.visible ? "#7f7f7f" : "#ffffff";
 	}
 	this.updateHighScores();
 }
@@ -815,6 +831,7 @@ function showMenu(){
 		var menuBack = new createjs.Shape();
 		menuBack.graphics.f("#000000").dr(0, 0, width, height);
 		menuBack.alpha = 0.75;
+		menuBack.on("mousedown", function(evt){}); // Capture event to prevent effects on background
 		showMenu.menu.addChild(menuBack);
 
 		// Add a label telling player to select a difficulty
