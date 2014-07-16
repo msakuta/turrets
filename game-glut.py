@@ -1521,14 +1521,14 @@ class Game(object):
 			glDisable(GL_ALPHA_TEST)
 			glLineWidth(1)
 			glTranslated(t.x, t.y, 0)
-			
+
 			# Show hit radius
 			glColor4f(0,1,1,1)
 			glBegin(GL_LINE_LOOP)
 			for i in range(32):
 				glVertex2d(t.radius * cos(i * pi * 2 / 32), t.radius * sin(i * pi * 2 / 32))
 			glEnd()
-			
+
 			# Show targeting range if available
 			if t.getRange() != None:
 				r = t.getRange()
@@ -1537,6 +1537,24 @@ class Game(object):
 					a = i * pi * 2 / 32
 					glVertex2d(r * cos(a), r * sin(a))
 				glEnd()
+
+			# Show health bar
+			glPushMatrix()
+			glTranslated(-t.radius, t.radius, 0)
+			glScaled(t.radius * 2, 5, 1)
+			glBegin(GL_QUADS)
+			glColor4f(1,0,0,1)
+			glVertex2d(0, 0)
+			glVertex2d(1, 0)
+			glVertex2d(1, 1)
+			glVertex2d(0, 1)
+			glColor4f(0,1,0,1)
+			glVertex2d(0, 0)
+			glVertex2d(t.health / t.maxHealth, 0)
+			glVertex2d(t.health / t.maxHealth, 1)
+			glVertex2d(0, 1)
+			glEnd()
+			glPopMatrix()
 
 			glColor4f(0,0,0,0.5)
 			for i in [([0,0,0,0.75], GL_QUADS), ([1,1,1,1], GL_LINE_LOOP)]:
