@@ -1107,6 +1107,7 @@ Game.prototype.deserialize = function(stream){
 		var rng = this.rng;
 		var n = 3;
 		this.towers = new Array(n);
+		this.credit = 1000;
 		for(var i = 0; i < n; i++){
 			this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
 			this.addTowerEvent(this.towers[i]);
