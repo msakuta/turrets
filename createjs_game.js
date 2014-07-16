@@ -758,11 +758,11 @@ function tick(event){
 function SelectStageButton(level, text){
 	createjs.Container.call(this);
 	var buttonFrame = new createjs.Shape();
-	buttonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 240, 45);
+	buttonFrame.graphics.beginFill("#0f0f0f").beginStroke("#ffffff").drawRect(0, 0, 300, 45);
 	buttonFrame.alpha = 0.5;
 	this.addChild(buttonFrame);
 	var mouseOverFrame = new createjs.Shape();
-	mouseOverFrame.graphics.beginFill("#3f3f3f").beginStroke("#ffffff").drawRect(0, 0, 240, 45);
+	mouseOverFrame.graphics.beginFill("#3f3f3f").beginStroke("#ffffff").drawRect(0, 0, 300, 45);
 	mouseOverFrame.alpha = 0.5;
 	mouseOverFrame.visible = false;
 	this.addChild(mouseOverFrame);
@@ -798,23 +798,88 @@ function SelectStageButton(level, text){
 SelectStageButton.prototype = new createjs.Container();
 
 function showMenu(){
+	var pageSize = 6;
+	showMenu.curPageIdx = 0;
+
+	function updatePages(){
+		for(var i = 0; i < showMenu.pages.length; i++)
+			showMenu.pages[i].visible = i === showMenu.curPageIdx;
+		// Base 1
+		pagePosLabel.text = (showMenu.curPageIdx + 1) + " / " + showMenu.pages.length;
+	}
 
 	if(showMenu.menu === undefined){
 		showMenu.menu = new createjs.Container();
-		var label = new createjs.Text("SELECT DIFFICULTY", "bold 12px Helvetica", "#ffffff");
+
+		// Add the screen first
+		var menuBack = new createjs.Shape();
+		menuBack.graphics.f("#000000").dr(0, 0, width, height);
+		menuBack.alpha = 0.75;
+		showMenu.menu.addChild(menuBack);
+
+		// Add a label telling player to select a difficulty
+		var label = new createjs.Text("SELECT DIFFICULTY", "bold 24px Helvetica", "#ffffff");
 		label.x = (width - label.getBounds().width) / 2;
-		label.y = 5;
+		label.y = 15;
 		showMenu.menu.addChild(label);
+
+		// Add a label indicating page location
+		var pagePosLabel = new createjs.Text("1 / 1", "bold 24px Helvetica", "#ffffff");
+		pagePosLabel.x = (width - pagePosLabel.getBounds().width) / 2;
+		pagePosLabel.y = height - 45;
+		showMenu.menu.addChild(pagePosLabel);
+
+		// Add page navigation button to go back
+		var prevButton = new createjs.Shape();
+		prevButton.graphics.beginFill("#3f3f3f").beginStroke("#ffffff")
+			.drawRect(0, 0, 30, 30)
+			.beginStroke("#ffffff").mt(25, 5).lt(25,25).lt(5,15).cp();
+		prevButton.x = width / 2 - 75;
+		prevButton.y = height - 50;
+		prevButton.on("click", function(evt){
+			if(0 < showMenu.curPageIdx){
+				showMenu.curPageIdx--;
+				updatePages();
+			}
+		});
+		showMenu.menu.addChild(prevButton);
+
+		// Add page navigation button to go forward
+		var nextButton = new createjs.Shape();
+		nextButton.graphics.beginFill("#3f3f3f").beginStroke("#ffffff")
+			.drawRect(0, 0, 30, 30)
+			.beginStroke("#ffffff").mt(5, 5).lt(5,25).lt(25,15).cp();
+		nextButton.on("click", function(evt){
+			if(showMenu.curPageIdx < showMenu.pages.length-1){
+				showMenu.curPageIdx++;
+				updatePages();
+			}
+		});
+		nextButton.x = width / 2 + 45;
+		nextButton.y = height - 50;
+		showMenu.menu.addChild(nextButton);
+
 		showMenu.buttons = [];
-		var captions = ["0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard", "10 - Insane", "-1 - Endurance mode"];
+		showMenu.pages = [];
+		var captions = [
+			"0 - Basic", "1 - Normal", "2 - Medium", "3 - Hard", "4 - Very Hard", "5 - Extremely Hard",
+			"6 - Extraordinary Hard", "7 - Veteran", "8 - Elite", "9 - Don't Try This", "10 - Insane",
+			"11 - Ultimate", "12 - Astronomic", "-1 - Endurance mode"];
 		for(var i = 0; i < captions.length; i++){
+			var pageIdx = Math.floor(i / pageSize);
+			if(showMenu.pages[pageIdx] === undefined){
+				var page = new createjs.Container();
+				showMenu.menu.addChild(page);
+				showMenu.pages[pageIdx] = page;
+			}
 			var str = captions[i].split(" ")[0];
 			var but = new SelectStageButton(parseInt(str), captions[i]);
-			but.x = (width - 240) / 2;
-			but.y = 20 + i * 45;
-			showMenu.menu.addChild(but);
+			but.x = (width - 300) / 2;
+			but.y = 45 + i % pageSize * 45;
+			showMenu.pages[pageIdx].addChild(but);
 			showMenu.buttons.push(but);
 		}
+		updatePages();
 		topContainer.addChild(showMenu.menu);
 	}
 
