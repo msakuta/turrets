@@ -940,7 +940,7 @@ function togglePause(){
 }
 
 document.onkeydown = function(event){
-	if(event.keyCode == 80){
+	if(event.keyCode == 80){ // 'p'
 		togglePause();
 	}
 }
