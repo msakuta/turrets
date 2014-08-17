@@ -63,6 +63,7 @@ function init(){
 	queue.loadFile("assets/MissileEnemy.png");
 	queue.loadFile("assets/BattleShip.png");
 	queue.loadFile("assets/BattleShipTurret.png");
+	queue.loadFile("assets/BulletShieldEnemy.png");
 
 	// Effects
 	queue.loadFile("assets/explode.png");
@@ -255,6 +256,7 @@ function start(){
 		MissileEnemy: new createjs.Bitmap("assets/MissileEnemy.png"),
 		BattleShipEnemy: new createjs.Bitmap("assets/BattleShip.png"),
 		BattleShipTurret: new createjs.Bitmap("assets/BattleShipTurret.png"),
+		BulletShieldEnemy: new createjs.Bitmap("assets/BulletShieldEnemy.png"),
 	};
 	var enemyExplosions = {
 		Enemy: 1,
@@ -264,6 +266,7 @@ function start(){
 		BeamEnemy: 10,
 		MissileEnemy: 10,
 		BattleShipEnemy: 20,
+		BulletShieldEnemy: 5,
 	};
 
 	game.addEnemyEvent = function(e){
@@ -283,6 +286,13 @@ function start(){
 				graph.addChild(tc);
 				e.turrets[i].graphic = tc;
 			}
+		}
+		if(e instanceof BulletShieldEnemy){
+			// Draw shield range
+			var shieldShape = new createjs.Shape();
+			shieldShape.graphics.beginStroke("#007f7f")
+				.drawCircle(0, 0, e.getShieldRadius());
+			graph.addChild(shieldShape);
 		}
 		enemyContainer.addChild(graph);
 		var beamShape = null;
