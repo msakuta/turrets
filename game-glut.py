@@ -1794,9 +1794,9 @@ def init():
 	glClearColor(0.0, 0.0, 0.0, 0.0)
 	glClearDepth(1.0)
 	glShadeModel(GL_SMOOTH)
-	exploTex = {"tex": gettex("assets/explode.png"), "totalFrames": 8, "size": 16, "speed": 2}
-	explo2Tex = {"tex": gettex("assets/explode2.png"), "totalFrames": 6, "size": 32, "speed": 1}
-	exploBlueTex = {"tex": gettex("assets/explode_blue.png"), "totalFrames": 8, "size": 16, "speed": 2}
+	exploTex = {"tex": gettex("assets/explode.png"), "totalFrames": 8, "size": 16, "speed": 10}
+	explo2Tex = {"tex": gettex("assets/explode2.png"), "totalFrames": 6, "size": 32, "speed": 5}
+	exploBlueTex = {"tex": gettex("assets/explode_blue.png"), "totalFrames": 8, "size": 16, "speed": 10}
 	global windowsize
 	y = windowsize[1] - 48
 	buttons.append(BuyButton(Tower, "assets/turret.png", windowsize[0] - 48, y)); y -= 32
