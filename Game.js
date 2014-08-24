@@ -4,12 +4,33 @@
 // but we could write this script independent of running environment.
 var global = this;
 
+function vecslen(v){
+	return v[0] * v[0] + v[1] * v[1];
+}
+
+function veclen(v){
+	return Math.sqrt(vecslen(v));
+}
+
+function vecnorm(v){
+	var len = veclen(v);
+	return [v[0] / len, v[1] / len];
+}
+
+function vecscale(v,s){
+	return [v[0] * s, v[1] * s];
+}
+
 function vecadd(v1,v2){
 	return [v1[0] + v2[0], v1[1] + v2[1]];
 }
 
 function vecsub(v1,v2){
 	return [v1[0] - v2[0], v1[1] - v2[1]];
+}
+
+function vecdot(v1,v2){
+	return v1[0] * v2[0] + v1[1] * v2[1];
 }
 
 // Utility 2D matrix functions
@@ -566,12 +587,31 @@ function Bullet(game,x,y,vx,vy,angle,owner){
 	this.life = 5;
 }
 
+Bullet.prototype.getVelo = function(){
+	return [this.vx, this.vy];
+}
+
+Bullet.prototype.setVelo = function(v){
+	this.vx = v[0];
+	this.vy = v[1];
+}
+
 Bullet.prototype.update = function(dt){
 	this.x += this.vx * dt;
 	this.y += this.vy * dt;
 	var enemies = this.team == 0 ? this.game.enemies : this.game.towers;
 	for(var i = 0; i < enemies.length; i++){
 		var e = enemies[i];
+		if(e instanceof BulletShieldEnemy){
+			var delta = [e.x - this.x, e.y - this.y];
+			var shieldRadius = e.getShieldRadius();
+			var velo = this.getVelo();
+			if(vecslen(delta) < shieldRadius * shieldRadius && 0 < vecdot(delta, velo)){
+				var dir = vecnorm(delta);
+				this.setVelo(vecadd(velo, vecscale(dir, -2 * vecdot(dir, velo))));
+				this.angle = Math.atan2(this.vy, this.vx);
+			}
+		}
 		if((e.x - this.x) * (e.x - this.x) + (e.y - this.y) * (e.y - this.y) < e.radius * e.radius){
 			this.owner.damage += this.damage;
 			if(e.receiveDamage(this.damage)){
@@ -1037,6 +1077,25 @@ BattleShipEnemy.prototype.update = function(dt){
 }
 
 
+/// \brief Enemy with reflecting shield against bullets
+function BulletShieldEnemy(game,x,y){
+	Enemy4.apply(this, arguments);
+	this.maxHealth = function(){return 5000;}
+	this.health = this.maxHealth();
+	this.radius = 32;
+	this.credit = Math.ceil(game.rng.next() * 2500);
+	this.angle = 0;
+	this.target = null;
+	this.cooldown = 30;
+	this.shootPhase = 0;
+}
+inherit(BulletShieldEnemy, Enemy4);
+
+BulletShieldEnemy.prototype.getShieldRadius = function(){
+	return 100;
+}
+
+
 function Game(width, height){
 	this.width = width;
 	this.height = height;
@@ -1072,6 +1131,7 @@ Game.prototype.enemyTypes = [
 	{type: BeamEnemy, waves: 30, freq: function(f){return (f * 5000 + 10000) / 20000000;}},
 	{type: MissileEnemy, waves: 40, freq: function(f){return (f * 5000 + 10000) / 20000000;}},
 	{type: BattleShipEnemy, waves: 50, freq: function(f){return (f * 5000 + 10000) / 50000000;}},
+	{type: BulletShieldEnemy, waves: 60, freq: function(f){return (f * 5000 + 10000) / 50000000;}},
 ];
 
 Game.prototype.init = function(){
@@ -1107,6 +1167,7 @@ Game.prototype.deserialize = function(stream){
 		var rng = this.rng;
 		var n = 3;
 		this.towers = new Array(n);
+		this.credit = 1000;
 		for(var i = 0; i < n; i++){
 			this.towers[i] = new Tower(this, rng.next() * width * 0.2 + width * 0.40, rng.next() * height * 0.2 + height * 0.4);
 			this.addTowerEvent(this.towers[i]);
