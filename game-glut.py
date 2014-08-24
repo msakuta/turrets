@@ -56,17 +56,22 @@ class Entity(object):
 
 	def __init__(self,game,x,y):
 		self.game = game
-		self.x = x
-		self.y = y
+		self.pos = vec2(x,y)
 		self.health = self.maxHealth
 
-	def _set_pos(self,v): self.x=v[0], self.y=v[1]
-		
 	def _getMaxHealth(self):
 		return 10
 
-	pos = property(lambda self: vec2(self.x, self.y), _set_pos, None)
-	
+	def _set_x(self,v): self.pos.x=v
+	x = property(lambda self: self.pos.x, _set_x)
+	def _set_y(self,v): self.pos.y=v
+	y = property(lambda self: self.pos.y, _set_y)
+
+	def _set_vx(self,v): self.velo.x=v
+	vx = property(lambda self: self.velo.x, _set_vx)
+	def _set_vy(self,v): self.velo.y=v
+	vy = property(lambda self: self.velo.y, _set_vy)
+
 	nextXp = property(lambda self: ceil(1.5 ** self.level * 100));
 	maxHealth = property(_getMaxHealth)
 
@@ -503,11 +508,8 @@ class MissileTower(Tower):
 
 class Bullet(Entity):
 	def __init__(self,game,x,y,vx,vy,angle,owner):
-		self.game = game
-		self.x = x
-		self.y = y
-		self.vx = vx
-		self.vy = vy
+		super(Bullet, self).__init__(game,x,y)
+		self.velo = vec2(vx,vy)
 		self.angle = angle
 		self.owner = owner
 		self.team = owner.team
@@ -517,10 +519,17 @@ class Bullet(Entity):
 		self.life = 5
 
 	def update(self,dt):
-		self.x += self.vx * dt;
-		self.y += self.vy * dt;
+		self.pos += self.velo * dt
 		enemies = self.game.enemies if self.team == 0 else self.game.towers
 		for e in enemies:
+			if isinstance(e, BulletShieldEnemy):
+				delta = e.pos - self.pos
+				velo = self.velo
+				shieldRadius = e.getShieldRadius()
+				if delta.slen() < shieldRadius * shieldRadius and 0 < delta.dot(velo):
+					direction = delta.norm()
+					self.velo = velo + direction * (-2 * direction.dot(velo))
+					self.angle = atan2(self.vy, self.vx)
 			if e.measureDistance(self) < e.radius:
 				self.owner.damage += self.damage
 				if e.receiveDamage(self.damage):
@@ -543,7 +552,8 @@ class Bullet(Entity):
 		glDisable(GL_TEXTURE_2D)
 		glPushMatrix()
 		glColor3fv([1,0,0] if self.team == 0 else [1,1,0])
-		glTranslated(self.x, self.y, 0)
+		p = self.pos
+		glTranslated(p.x, p.y, 0)
 		glRotated(self.angle * 360 / pi / 2, 0, 0, 1)
 		glScaled(16,16,1)
 		glBegin(GL_QUADS)
@@ -1028,6 +1038,46 @@ class BattleShipEnemy(Enemy):
 			BattleShipEnemy.tex = gettex("assets/BattleShip.png", BattleShipEnemy.texParams)
 		return BattleShipEnemy.texParams
 
+class BulletShieldEnemy(Enemy4):
+	""" @brief Enemy with reflecting shield against bullets """
+
+	def __init__(self,game,x,y):
+		super(BulletShieldEnemy, self).__init__(game,x,y)
+		self.health = self.maxHealth
+		self.radius = 32
+		self.credit = ceil(random() * 2500)
+		self.angle = 0
+		self.target = None
+		self.cooldown = 30
+		self.shootPhase = 0
+
+	def getShieldRadius(self):
+		return 100
+
+	maxHealth = property(lambda self: 5000)
+
+	tex = None
+	texParams = {}
+	def getTexture(self):
+		# Load on first use
+		if self.__class__.tex == None:
+			self.__class__.tex = gettex("assets/BulletShieldEnemy.png", self.__class__.texParams)
+		return self.__class__.texParams
+
+	def draw(self):
+		super(BulletShieldEnemy, self).draw()
+		rad = self.getShieldRadius()
+		glPushMatrix()
+		glTranslated(self.x, self.y, 0)
+		glDisable(GL_TEXTURE_2D)
+		glColor4f(0, 0.5, 0.5, 1)
+		glBegin(GL_LINE_LOOP)
+		for i in range(32):
+			phase = i * pi * 2 / 32.
+			glVertex2d(rad * sin(phase), rad * cos(phase))
+		glEnd()
+		glPopMatrix()
+
 class Effect(object):
 	def __init__(self,x,y):
 		self.x = x
@@ -1205,6 +1255,7 @@ class Game(object):
 		{"type": BeamEnemy, "waves": 30, "freq": lambda f: (f * 5000 + 10000) / 20000000},
 		{"type": MissileEnemy, "waves": 40, "freq": lambda f: (f * 5000 + 10000) / 20000000},
 		{"type": BattleShipEnemy, "waves": 50, "freq": lambda f: (f * 5000 + 10000) / 50000000},
+		{"type": BulletShieldEnemy, "waves": 50, "freq": lambda f: (f * 5000 + 10000) / 50000000},
 	];
 
 	def __init__(self, width, height):

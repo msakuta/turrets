@@ -8,7 +8,7 @@ project turrets
 """
 
 from math import *
-
+import numbers
 
 # Utility 2D matrix functions
 def matvp(m,v):
@@ -134,6 +134,15 @@ class vec2(object):
 	def len(self):
 		return sqrt(self.slen())
 
+	def norm(self):
+		len = self.len()
+		return vec2(self.x / len, self.y / len)
+
 	def toarray(self):
 		return [self.x, self.y]
+
+	def dot(self,o):
+		if not isinstance(o, vec2):
+			raise TypeError()
+		return self.x * o.x + self.y * o.y
 
