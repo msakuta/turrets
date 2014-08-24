@@ -16,14 +16,14 @@ try:
   from OpenGL.GLU import *
 except:
   print '''
-ERROR: PyOpenGL not installed properly.  
+ERROR: PyOpenGL not installed properly.
         '''
 
 try:
   from PIL import Image
 except:
   print '''
-ERROR: PIL not installed properly.  
+ERROR: PIL not installed properly.
         '''
 
 from mathlib import *
@@ -141,7 +141,7 @@ class Tower(Entity):
 	@staticmethod
 	def dispName():
 		return "Machine Gun";
-	
+
 	def serialize(self):
 		v = self
 		return dict(
@@ -179,7 +179,7 @@ class Tower(Entity):
 
 	def getDPS(self,frameTime):
 		return 2 * 1.2 ** self.level / self.getCooldownTime() / frameTime
-	
+
 	def getRange(self):
 		return None
 
@@ -232,7 +232,7 @@ class Tower(Entity):
 		if Tower.tex == None:
 			Tower.tex = gettex("assets/turret.png", Tower.texParams)
 		return Tower.texParams
-			
+
 	def onKill(self,e):
 		if e.team != 0:
 			self.game.score += e.maxHealth
@@ -389,7 +389,7 @@ class BeamShooter(object):
 
 class BeamTower(Tower,BeamShooter):
 	""" Tower with a beam cannon which penetrates through enemies """
-	
+
 	def __init__(self,game,x,y):
 		Tower.__init__(self,game,x,y)
 		self.radius = 18;
@@ -431,7 +431,7 @@ class BeamTower(Tower,BeamShooter):
 			self.shootBeam(dt)
 			self.shootPhase -= 1
 		return True
-	
+
 	def draw(self):
 		super(BeamTower, self).draw()
 		self.drawBeam([1, 0.5, 1, 0], [1, 0.5, 1, 1])
@@ -461,7 +461,7 @@ class MissileTower(Tower):
 
 	def _getMaxHealth(self):
 		return ceil(pow(1.2, self.level) * 25)
-	
+
 	maxHealth = property(_getMaxHealth)
 
 	nextXp = property(lambda(self): ceil(1.5 ** (self.level-1) * 500))
@@ -688,7 +688,7 @@ class Enemy2(Enemy):
 		self.health = self.maxHealth
 		self.radius = 15
 		self.credit = ceil(random() * 150)
-	
+
 	maxHealth = 150
 
 	def shootFrequency(self):
@@ -711,9 +711,9 @@ class Enemy3(Enemy):
 		self.credit = ceil(random() * 150)
 		self.angle = 0
 		self.target = None
-		
+
 	maxHealth = 50
-	
+
 	def shootFrequency(self):
 		return 0.2
 
@@ -1160,7 +1160,7 @@ class HealEffect(Effect):
 	maxLife = 2
 	life = maxLife
 	tess = None
-	
+
 	def __init__(self, target, src):
 		Effect.__init__(self, target.x, target.y)
 		self.target = target
@@ -1215,7 +1215,7 @@ class HealEffect(Effect):
 		finally:
 			gluTessEndPolygon(self.tess)
 		glPopMatrix()
-	
+
 		glPushMatrix()
 		glColor4f(0,1,0.5, self.life / self.maxLife * 0.5)
 		glTranslated(self.src.x, self.src.y, 0)
@@ -1578,13 +1578,13 @@ class Game(object):
 		self.bullets.remove(b)
 		b.onDelete()
 		return True
-	
+
 	def addTowerEvent(self,t):
 		pass
 
 	def onHeal(self, target, src):
 		self.effects.append(HealEffect(target, src))
-		
+
 	def onBeamHit(self, x, y):
 		if randint(0,3) != 0:
 			return
@@ -1653,7 +1653,7 @@ class ImageButton(Button):
 		self.imagePath = imagePath
 		self.tex = None
 		self.texParams = {}
-		
+
 	def getColor(self):
 		return [1,1,1,1]
 
